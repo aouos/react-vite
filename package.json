@@ -1,0 +1,28 @@
+{
+  "name": "react-vite",
+  "version": "0.0.1",
+  "description": "create react app with vite",
+  "main": "index.js",
+  "bin": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/aouos/react-vite.git"
+  },
+  "keywords": [
+    "react",
+    "vite",
+    "cli"
+  ],
+  "author": "aouos",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/aouos/react-vite/issues"
+  },
+  "homepage": "https://github.com/aouos/react-vite#readme",
+  "dependencies": {
+    "inquirer": "^8.2.1"
+  }
+}
