@@ -1,18 +1,22 @@
 {
   "name": "react-vite",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "create react app with vite",
   "private": false,
-  "main": "index.js",
-  "bin": "index.js",
+  "main": "src/main.js",
+  "bin": "lib/index.js",
   "scripts": {
+    "dev": "rollup -w -c",
+    "build": "rollup -c",
+    "preview": "node ./lib/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com/aouos/react-vite.git"
+    "url": "https://github.com/react-vite/react-vite.git"
   },
   "keywords": [
+    "react+vite",
     "react",
     "vite",
     "cli"
@@ -20,13 +24,19 @@
   "author": "aouos",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/aouos/react-vite/issues"
+    "url": "https://github.com/react-vite/react-vite/issues"
   },
-  "homepage": "https://github.com/aouos/react-vite#readme",
+  "homepage": "https://github.com/react-vite/react-vite#readme",
   "dependencies": {
-    "chalk": "4.1.2",
+    "chalk": "^4.1.2",
     "commander": "^9.0.0",
     "fs-extra": "^10.0.1",
-    "inquirer": "^8.2.1"
-  }
+    "inquirer": "^8.2.1",
+    "rollup": "^2.70.0"
+  },
+  "files": [
+    "lib",
+    "README.md",
+    "package.json"
+  ]
 }
