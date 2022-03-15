@@ -1,6 +1,6 @@
 {
   "name": "react-vite",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "create react app with vite",
   "private": false,
   "main": "src/main.js",
