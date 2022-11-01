@@ -33,7 +33,7 @@
     "chalk": "^4.1.2",
     "commander": "^9.0.0",
     "fs-extra": "^10.0.1",
-    "inquirer": "^8.2.1",
+    "inquirer": "^9.1.4",
     "rollup": "^2.70.0"
   },
   "files": [
