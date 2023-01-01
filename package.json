@@ -30,7 +30,7 @@
   },
   "homepage": "https://github.com/aouos/react-vite#readme",
   "dependencies": {
-    "chalk": "^4.1.2",
+    "chalk": "^5.2.0",
     "commander": "^9.0.0",
     "fs-extra": "^10.0.1",
     "inquirer": "^8.2.1",
