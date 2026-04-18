@@ -1,6 +1,7 @@
 import resolve from '@rollup/plugin-node-resolve';
+import commonjs from '@rollup/plugin-commonjs';
+import json from '@rollup/plugin-json';
 import babel from '@rollup/plugin-babel';
-import { uglify } from 'rollup-plugin-uglify';
 
 export default {
   input: './src/index.js',
@@ -8,12 +9,30 @@ export default {
     file: './lib/index.js',
     format: 'cjs',
     banner: '#!/usr/bin/env node',
+    exports: 'auto',
   },
+  external: [
+    'commander',
+    'inquirer',
+    'chalk',
+    'fs-extra',
+    'fs',
+    'path',
+    'child_process',
+    'os',
+    'url',
+    'util',
+    'stream',
+    'events',
+    'assert',
+  ],
   plugins: [
-    resolve(),
-    uglify(),
+    resolve({ preferBuiltins: true }),
+    commonjs(),
+    json(),
     babel({
-      exclude: 'node_modules',
+      babelHelpers: 'bundled',
+      exclude: 'node_modules/**',
     }),
   ],
 };

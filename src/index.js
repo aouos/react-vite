@@ -1,39 +1,38 @@
 const { program } = require('commander');
-const inquirer = require('inquirer');
 const chalk = require('chalk');
+const pkg = require('../package.json');
 
 program
-  .version(require('../package.json').version)
-  .option('-v, --version', 'react-vite version');
+  .name('rv')
+  .description('Scaffold minimal React + Vite projects')
+  .version(pkg.version, '-v, --version', 'output the current version');
+
+program
+  .command('init')
+  .description('Initialize a React + Vite project in the current directory')
+  .action(async () => {
+    try {
+      await require('./commands/init')();
+    } catch (err) {
+      console.error(chalk.red(err.stack || err.message));
+      process.exit(1);
+    }
+  });
+
+program
+  .command('create <project-name>')
+  .description('Create a new React + Vite project in ./<project-name>')
+  .action(async (projectName) => {
+    try {
+      await require('./commands/create')(projectName);
+    } catch (err) {
+      console.error(chalk.red(err.stack || err.message));
+      process.exit(1);
+    }
+  });
 
 program.parse(process.argv);
 
-inquirer
-  .prompt([
-    {
-      type: 'input',
-      name: 'name',
-      message: 'Input your project name',
-      default: 'react-vite',
-    },
-    {
-      type: 'confirm',
-      name: 'typescript',
-      message: 'Use typescript template',
-      default: false,
-    },
-    {
-      type: 'list',
-      name: 'template',
-      choices: ['react', 'react-ts', 'react-antd'],
-      message: 'Choice the template',
-      default: 'react',
-    },
-  ])
-  .then((answers) => {
-    console.log(answers);
-    console.log(chalk.green(`\nIn development`));
-  })
-  .catch((error) => {
-    console.log(error);
-  });
+if (!process.argv.slice(2).length) {
+  program.outputHelp();
+}
