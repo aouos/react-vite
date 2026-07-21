@@ -1,15 +1,21 @@
 # Publishes the package to npm when a GitHub release is created.
-# Requires the repository secret NPM_TOKEN (an npm automation token).
+# Uses npm trusted publishing (OIDC) — no NPM_TOKEN secret needed.
+# One-time setup on npmjs.com: package Settings → Trusted Publisher →
+# GitHub Actions, repository boltguo/react-vite, workflow npm-publish.yml.
 
 name: NPM Package
 
 on:
   release:
     types: [created]
+  workflow_dispatch:
 
 jobs:
   publish-npm:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -20,8 +26,8 @@ jobs:
           node-version: 22
           registry-url: https://registry.npmjs.org/
           cache: pnpm
+      # Trusted publishing requires npm >= 11.5.1
+      - run: npm install -g npm@latest
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
       - run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
