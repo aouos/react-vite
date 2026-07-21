@@ -1,6 +1,6 @@
 {
   "name": "react-vite",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "Interactive React + Vite project scaffolding with optional TypeScript, Tailwind CSS, React Router, ESLint + Prettier, and Zustand.",
   "type": "module",
   "bin": {

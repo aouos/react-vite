@@ -6,6 +6,13 @@ React Vite
   <a href="https://www.npmjs.com/package/react-vite">
     <img src="https://img.shields.io/npm/v/react-vite.svg" alt="Version" />
   </a>
+  <a href="https://www.npmjs.com/package/react-vite">
+    <img src="https://img.shields.io/npm/dw/react-vite.svg" alt="Downloads per week" />
+  </a>
+  <a href="https://github.com/boltguo/react-vite/actions/workflows/ci.yml">
+    <img src="https://github.com/boltguo/react-vite/actions/workflows/ci.yml/badge.svg" alt="CI status" />
+  </a>
+  <img src="https://img.shields.io/node/v/react-vite.svg" alt="Supported Node versions" />
   <img src="https://img.shields.io/npm/l/react-vite.svg" alt="License" />
 </p>
 
@@ -30,6 +37,7 @@ linting — after generating, you still have to wire those up by hand.
 | **Zustand store + counter demo**         | No                             | Yes                             |
 | **ESLint flat config + Prettier**        | ESLint only, no Prettier       | Both, TS-aware when TS is on    |
 | **Init into an existing directory**      | No (`create-*` makes new dirs) | Yes — `rv init` with safe merge |
+| **Generators after scaffolding**         | No                             | Yes — `rv add page <name>`      |
 | **Runs install for you (npm/pnpm/yarn)** | No                             | Yes — prompts for PM on PATH    |
 
 Every feature is opt-in. Select none and you get the same minimal output as
@@ -86,6 +94,26 @@ Works in non-empty directories too:
 - If generated files would overwrite existing ones, you choose to
   **overwrite** them, **keep** the existing files, or **cancel** (nothing is
   written).
+
+### Add a page to an existing project
+
+```bash
+rv add page blog
+rv add page blog-post
+```
+
+In a project scaffolded with the **React Router** feature, this detects
+TypeScript and Tailwind from your `package.json` and:
+
+1. generates `src/pages/Blog.tsx` (or `.jsx`) in the same style as the rest
+   of the project,
+2. registers the `/blog` route in `src/router`,
+3. adds a navigation link in `src/layouts/RootLayout`.
+
+Steps 2–3 rely on the small `// rv:route`-style anchor comments that
+scaffolded projects contain. If you have restructured those files (or the
+project was created before v0.0.7), the page is still generated and `rv`
+prints the exact lines to add manually.
 
 ### Interactive prompts
 

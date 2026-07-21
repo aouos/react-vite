@@ -104,6 +104,9 @@ try {
   assert.equal(completePackage.dependencies['react-router-dom'], '7.18.1');
   assert.equal(completePackage.dependencies.zustand, '5.0.14');
 
+  runCli(['add', 'page', 'blog-post'], path.join(root, 'complete-js'));
+  runCli(['add', 'page', 'blog-post'], path.join(root, 'complete-ts'));
+
   for (const testCase of projectCases) {
     await validateProject(testCase);
   }

@@ -1,5 +1,6 @@
 import { createRequire } from 'node:module';
 import { Command } from 'commander';
+import { addCommand } from './commands/add.js';
 import { createCommand } from './commands/create.js';
 import { initCommand } from './commands/init.js';
 import { isPromptCancellation } from './prompts.js';
@@ -38,8 +39,18 @@ Examples:
   $ rv create my-app
   $ rv create my-app --features all --install npm
   $ rv init --features typescript,tailwind --install none
+  $ rv add page blog
 `,
     );
+
+  program
+    .command('add')
+    .description('add pieces to an existing rv project')
+    .argument('<type>', `what to add: page`)
+    .argument('<name>', 'name for the new piece, e.g. blog or blog-post')
+    .action(async (type, name) => {
+      await addCommand(type, name);
+    });
 
   addSharedOptions(
     program

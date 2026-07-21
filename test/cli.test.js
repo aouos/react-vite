@@ -8,6 +8,9 @@ import { fileURLToPath } from 'node:url';
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const cliPath = path.join(repositoryRoot, 'bin/rv.js');
+const packageVersion = JSON.parse(
+  await readFile(path.join(repositoryRoot, 'package.json'), 'utf8'),
+).version;
 
 function runCli(args, cwd = repositoryRoot) {
   return spawnSync(process.execPath, [cliPath, ...args], {
@@ -30,12 +33,13 @@ async function temporaryDirectory(t) {
 test('CLI exposes version and both supported commands', () => {
   const version = runCli(['--version']);
   assert.equal(version.status, 0, version.stderr);
-  assert.equal(version.stdout.trim(), '0.0.6');
+  assert.equal(version.stdout.trim(), packageVersion);
 
   const help = runCli(['--help']);
   assert.equal(help.status, 0, help.stderr);
   assert.match(help.stdout, /create \[options\]/);
   assert.match(help.stdout, /init \[options\]/);
+  assert.match(help.stdout, /add <type> <name>/);
 });
 
 test('create supports fully non-interactive generation', async (t) => {

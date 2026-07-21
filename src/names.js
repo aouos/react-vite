@@ -104,3 +104,28 @@ export function validatePackageName(value) {
 export function packageNameFromDirectory(directoryName) {
   return sanitizePackageName(directoryName) || 'my-app';
 }
+
+export function validatePageName(value) {
+  const name = String(value ?? '').trim();
+  if (!name) return 'Page name is required.';
+  if (name.length > 40) return 'Page name must be 40 characters or fewer.';
+  if (!/^[A-Za-z][A-Za-z0-9-]*$/u.test(name)) {
+    return 'Page names must start with a letter and use only letters, numbers, and hyphens.';
+  }
+  if (/-$/u.test(name) || /--/u.test(name)) {
+    return 'Page names cannot end with a hyphen or contain consecutive hyphens.';
+  }
+  return true;
+}
+
+export function pageComponentName(value) {
+  return String(value)
+    .split('-')
+    .filter(Boolean)
+    .map((segment) => segment[0].toUpperCase() + segment.slice(1))
+    .join('');
+}
+
+export function pageRoutePath(value) {
+  return String(value).trim().toLowerCase();
+}
