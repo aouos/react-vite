@@ -4,8 +4,8 @@
   "description": "Interactive React + Vite project scaffolding with optional TypeScript, Tailwind CSS, React Router, ESLint + Prettier, and Zustand.",
   "type": "module",
   "bin": {
-    "rv": "./bin/rv.js",
-    "react-vite": "./bin/rv.js"
+    "rv": "bin/rv.js",
+    "react-vite": "bin/rv.js"
   },
   "files": [
     "bin",
