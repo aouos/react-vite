@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
@@ -39,7 +39,7 @@ test('CLI exposes version and both supported commands', () => {
   assert.equal(help.status, 0, help.stderr);
   assert.match(help.stdout, /create \[options\]/);
   assert.match(help.stdout, /init \[options\]/);
-  assert.match(help.stdout, /add <type> <name>/);
+  assert.match(help.stdout, /add \[options\] <type> <name>/);
 });
 
 test('create supports fully non-interactive generation', async (t) => {
@@ -98,4 +98,24 @@ test('init merges the current directory without prompts when flags are supplied'
   assert.equal(pkg.description, 'keep');
   assert.ok(pkg.dependencies['react-router-dom']);
   assert.ok(pkg.devDependencies.typescript);
+});
+
+test('create initializes git by default and honors --no-git and --dry-run', async (t) => {
+  const root = await temporaryDirectory(t);
+
+  const withGit = runCli(['create', 'git-app', '--features', 'none', '--install', 'none'], root);
+  assert.equal(withGit.status, 0, withGit.stderr);
+  assert.ok((await stat(path.join(root, 'git-app/.git'))).isDirectory());
+
+  const withoutGit = runCli(
+    ['create', 'no-git-app', '--features', 'none', '--install', 'none', '--no-git'],
+    root,
+  );
+  assert.equal(withoutGit.status, 0, withoutGit.stderr);
+  await assert.rejects(stat(path.join(root, 'no-git-app/.git')));
+
+  const dryRun = runCli(['create', 'dry-app', '--features', 'all', '--dry-run'], root);
+  assert.equal(dryRun.status, 0, dryRun.stderr);
+  assert.match(`${dryRun.stdout}${dryRun.stderr}`, /Dry run/);
+  await assert.rejects(stat(path.join(root, 'dry-app')));
 });

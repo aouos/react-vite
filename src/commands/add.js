@@ -1,11 +1,20 @@
 import { lstat, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import pc from 'picocolors';
-import { pageComponentName, pageRoutePath, validatePageName } from '../names.js';
-import { addedPageSource } from '../templates.js';
+import {
+  pageComponentName,
+  pageRoutePath,
+  storeHookName,
+  validatePageName,
+} from '../names.js';
+import {
+  addedComponentSource,
+  addedPageSource,
+  addedStoreSource,
+} from '../templates.js';
 import { logger } from '../utils/logger.js';
 
-const ADD_TYPES = Object.freeze(['page']);
+const ADD_TYPES = Object.freeze(['page', 'component', 'store']);
 
 async function fileExists(filePath) {
   try {
@@ -16,6 +25,7 @@ async function fileExists(filePath) {
   }
 }
 
+// Infers enabled features from package.json dependencies (BOM-stripped before parsing).
 async function detectProject(targetDir) {
   const packagePath = path.join(targetDir, 'package.json');
   if (!(await fileExists(packagePath))) {
@@ -50,6 +60,11 @@ async function findSourceFile(targetDir, candidates) {
   return null;
 }
 
+// Anchor-insertion contract: inserts `line` immediately BEFORE the first occurrence of
+// the anchor comment (e.g. "// rv:route" or "{/* rv:nav */}"), preserving the anchor
+// line itself so future insertions still work, and re-indenting every inserted line to
+// match the anchor's leading whitespace. Returns false when the anchor is missing so
+// callers can fall back to printing manual instructions.
 async function insertAtAnchor(targetDir, relativePath, anchor, line) {
   const filePath = path.join(targetDir, relativePath);
   const contents = await readFile(filePath, 'utf8');
@@ -73,9 +88,16 @@ async function insertAtAnchor(targetDir, relativePath, anchor, line) {
   return true;
 }
 
-async function addPage(name, targetDir) {
-  const validation = validatePageName(name);
-  if (validation !== true) throw new Error(validation);
+async function addPage(name, targetDir, dryRun) {
+  const segments = String(name ?? '').split('/').filter(Boolean);
+  if (segments.length === 0) throw new Error('Page name is required.');
+  if (segments.length > 3) {
+    throw new Error('Page paths support at most three segments, e.g. blog/detail.');
+  }
+  for (const segment of segments) {
+    const validation = validatePageName(segment);
+    if (validation !== true) throw new Error(validation);
+  }
 
   const features = await detectProject(targetDir);
   if (!features.router) {
@@ -86,9 +108,19 @@ async function addPage(name, targetDir) {
   }
 
   const extension = features.typescript ? 'tsx' : 'jsx';
-  const componentName = pageComponentName(name);
-  const routePath = pageRoutePath(name);
+  const componentName = segments.map(pageComponentName).join('');
+  if (componentName.length > 21) {
+    throw new Error('Page name must be 21 characters or fewer.');
+  }
+  const routePath = segments.map(pageRoutePath).join('/');
   const pageFile = `src/pages/${componentName}.${extension}`;
+
+  if (dryRun) {
+    logger.warn('Dry run — nothing was written.');
+    logger.info(`  Would create ${pageFile}`);
+    logger.info(`  Would register the /${routePath} route and a navigation link`);
+    return;
+  }
 
   if (await fileExists(path.join(targetDir, pageFile))) {
     throw new Error(`${pageFile} already exists.`);
@@ -113,20 +145,20 @@ async function addPage(name, targetDir) {
   );
   logger.success(`Created ${pageFile}`);
 
-  const importLine = `import ${componentName} from './pages/${componentName}';`;
-  const routeLine = `{ path: '${routePath}', element: <${componentName} /> },`;
+  const routeLines = [
+    '{',
+    `  path: '${routePath}',`,
+    `  lazy: async () => ({ Component: (await import('./pages/${componentName}')).default }),`,
+    '},',
+  ].join('\n');
   const navLines = `<NavLink to="/${routePath}" className={navClassName}>\n  ${componentName}\n</NavLink>`;
   const manual = [];
 
-  if (
-    routerFile &&
-    (await insertAtAnchor(targetDir, routerFile, '// rv:import', importLine)) &&
-    (await insertAtAnchor(targetDir, routerFile, '// rv:route', routeLine))
-  ) {
+  if (routerFile && (await insertAtAnchor(targetDir, routerFile, '// rv:route', routeLines))) {
     logger.success(`Registered route /${routePath} in ${routerFile}`);
   } else {
     manual.push(
-      `Add to ${routerFile ?? 'your router file'}:\n  ${importLine}\n  ${routeLine}`,
+      `Add to the children of ${routerFile ?? 'your router file'}:\n${routeLines}`,
     );
   }
 
@@ -144,9 +176,92 @@ async function addPage(name, targetDir) {
   logger.info(`\nOpen ${pc.cyan(`/${routePath}`)} in the dev server to see the page.`);
 }
 
-export async function addCommand(type, name, { cwd = process.cwd() } = {}) {
+async function writeGeneratedFile(targetDir, relativePath, contents) {
+  if (await fileExists(path.join(targetDir, relativePath))) {
+    throw new Error(`${relativePath} already exists.`);
+  }
+  await mkdir(path.dirname(path.join(targetDir, relativePath)), { recursive: true });
+  await writeFile(path.join(targetDir, relativePath), contents, 'utf8');
+  logger.success(`Created ${relativePath}`);
+}
+
+async function addComponent(name, targetDir, dryRun) {
+  const validation = validatePageName(name);
+  if (validation !== true) throw new Error(validation);
+
+  const features = await detectProject(targetDir);
+  const componentName = pageComponentName(name);
+  const extension = features.typescript ? 'tsx' : 'jsx';
+  const componentFile = `src/components/${componentName}.${extension}`;
+
+  if (dryRun) {
+    logger.warn('Dry run — nothing was written.');
+    logger.info(`  Would create ${componentFile}`);
+    return;
+  }
+
+  await writeGeneratedFile(
+    targetDir,
+    componentFile,
+    addedComponentSource(features, componentName),
+  );
+  logger.info(`\nImport it with ${pc.cyan(`import ${componentName} from './components/${componentName}';`)}`);
+}
+
+async function addStore(name, targetDir, dryRun) {
+  const validation = validatePageName(name);
+  if (validation !== true) throw new Error(validation);
+  if (name.length > 24) {
+    throw new Error('Store name must be 24 characters or fewer.');
+  }
+
+  const features = await detectProject(targetDir);
+  if (!features.zustand) {
+    throw new Error(
+      'rv add store requires Zustand (zustand was not found in package.json). ' +
+        'Scaffold with the zustand feature enabled, or install zustand first.',
+    );
+  }
+
+  const hookName = storeHookName(name);
+  const typeName = `${hookName.slice(3)}State`;
+  const extension = features.typescript ? 'ts' : 'js';
+  const storeFile = `src/store/${hookName}.${extension}`;
+
+  if (dryRun) {
+    logger.warn('Dry run — nothing was written.');
+    logger.info(`  Would create ${storeFile}`);
+    return;
+  }
+
+  await writeGeneratedFile(
+    targetDir,
+    storeFile,
+    addedStoreSource(features, hookName, typeName),
+  );
+  logger.info(`\nUse it with ${pc.cyan(`import { ${hookName} } from './store/${hookName}';`)}`);
+}
+
+/**
+ * Implements "rv add": generates a page, component, or store in an existing project.
+ * Pages are also wired into the router/layout via the rv:route and rv:nav anchors.
+ * @param {string} type - "page", "component", or "store".
+ * @param {string} name - Name of the new piece (pages may use up to three "/" segments).
+ * @param {object} options - { cwd?: string, dryRun?: boolean }.
+ * @returns {Promise<void>}
+ * @throws {Error} On unknown type, invalid names, missing prerequisites, or existing files.
+ */
+export async function addCommand(type, name, { cwd = process.cwd(), dryRun = false } = {}) {
   if (!ADD_TYPES.includes(type)) {
     throw new Error(`Unknown add type: ${type}. Supported: ${ADD_TYPES.join(', ')}.`);
   }
-  await addPage(name, cwd);
+  if (type === 'component') {
+    await addComponent(name, cwd, dryRun);
+    return;
+  }
+  if (type === 'store') {
+    await addStore(name, cwd, dryRun);
+    return;
+  }
+  await addPage(name, cwd, dryRun);
 }

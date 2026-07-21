@@ -28,8 +28,11 @@ test('add page wires a TypeScript + Tailwind page into router and navigation', a
   assert.match(page, /max-w-6xl/);
 
   const router = await readFile(path.join(targetDir, 'src/router.tsx'), 'utf8');
-  assert.match(router, /import BlogPost from '\.\/pages\/BlogPost';/);
-  assert.match(router, /\{ path: 'blog-post', element: <BlogPost \/> \},/);
+  assert.match(router, /path: 'blog-post',/);
+  assert.match(
+    router,
+    /lazy: async \(\) => \(\{ Component: \(await import\('\.\/pages\/BlogPost'\)\)\.default \}\),/,
+  );
   assert.ok(router.includes('// rv:route'), 'anchor is preserved for the next add');
 
   const layout = await readFile(path.join(targetDir, 'src/layouts/RootLayout.tsx'), 'utf8');
@@ -47,8 +50,8 @@ test('add page generates plain-CSS JSX pages and supports repeated adds', async 
   assert.doesNotMatch(page, /max-w-6xl/);
 
   const router = await readFile(path.join(targetDir, 'src/router.jsx'), 'utf8');
-  assert.match(router, /\{ path: 'blog', element: <Blog \/> \},/);
-  assert.match(router, /\{ path: 'contact', element: <Contact \/> \},/);
+  assert.match(router, /path: 'blog',/);
+  assert.match(router, /import\('\.\/pages\/Contact'\)/);
 });
 
 test('add page requires a router project', async () => {
@@ -68,6 +71,76 @@ test('add page rejects duplicates, bad names, and unknown types', async () => {
   await assert.rejects(addCommand('widget', 'blog', { cwd: targetDir }), /Unknown add type/);
 });
 
+test('add component generates a style-matched component without requiring router', async () => {
+  const tailwindDir = await scaffoldTestProject(['typescript', 'tailwind']);
+  await addCommand('component', 'user-card', { cwd: tailwindDir });
+  const tailwindComponent = await readFile(
+    path.join(tailwindDir, 'src/components/UserCard.tsx'),
+    'utf8',
+  );
+  assert.match(tailwindComponent, /export default function UserCard\(\)/);
+  assert.match(tailwindComponent, /rounded-2xl/);
+
+  const plainDir = await scaffoldTestProject([]);
+  await addCommand('component', 'user-card', { cwd: plainDir });
+  const plainComponent = await readFile(
+    path.join(plainDir, 'src/components/UserCard.jsx'),
+    'utf8',
+  );
+  assert.match(plainComponent, /User Card/);
+  assert.doesNotMatch(plainComponent, /rounded-2xl/);
+});
+
+test('add store generates a zustand store and requires the dependency', async () => {
+  const targetDir = await scaffoldTestProject(['typescript', 'zustand']);
+  await addCommand('store', 'cart', { cwd: targetDir });
+  const store = await readFile(path.join(targetDir, 'src/store/useCart.ts'), 'utf8');
+  assert.match(store, /type CartState = \{/);
+  assert.match(store, /export const useCart = create<CartState>/);
+
+  await addCommand('store', 'use-session', { cwd: targetDir });
+  const session = await readFile(path.join(targetDir, 'src/store/useSession.ts'), 'utf8');
+  assert.match(session, /export const useSession = create<SessionState>/);
+
+  const withoutZustand = await scaffoldTestProject([]);
+  await assert.rejects(
+    addCommand('store', 'cart', { cwd: withoutZustand }),
+    /requires Zustand/,
+  );
+});
+
+test('add page supports nested paths', async () => {
+  const targetDir = await scaffoldTestProject(['router']);
+  await addCommand('page', 'blog/detail', { cwd: targetDir });
+
+  const page = await readFile(path.join(targetDir, 'src/pages/BlogDetail.jsx'), 'utf8');
+  assert.match(page, /export default function BlogDetail\(\)/);
+
+  const router = await readFile(path.join(targetDir, 'src/router.jsx'), 'utf8');
+  assert.match(router, /path: 'blog\/detail',/);
+  assert.match(router, /import\('\.\/pages\/BlogDetail'\)/);
+
+  await assert.rejects(
+    addCommand('page', 'a/b/c/d', { cwd: targetDir }),
+    /at most three segments/,
+  );
+});
+
+test('add --dry-run previews without writing', async () => {
+  const targetDir = await scaffoldTestProject(['router', 'zustand']);
+  const routerBefore = await readFile(path.join(targetDir, 'src/router.jsx'), 'utf8');
+
+  await addCommand('page', 'blog', { cwd: targetDir, dryRun: true });
+  await addCommand('component', 'user-card', { cwd: targetDir, dryRun: true });
+  await addCommand('store', 'cart', { cwd: targetDir, dryRun: true });
+
+  await assert.rejects(readFile(path.join(targetDir, 'src/pages/Blog.jsx'), 'utf8'));
+  await assert.rejects(readFile(path.join(targetDir, 'src/components/UserCard.jsx'), 'utf8'));
+  await assert.rejects(readFile(path.join(targetDir, 'src/store/useCart.js'), 'utf8'));
+  const routerAfter = await readFile(path.join(targetDir, 'src/router.jsx'), 'utf8');
+  assert.equal(routerAfter, routerBefore);
+});
+
 test('add page falls back to manual instructions when anchors are missing', async () => {
   const targetDir = await scaffoldTestProject(['router']);
   const routerPath = path.join(targetDir, 'src/router.jsx');
@@ -82,5 +155,5 @@ test('add page falls back to manual instructions when anchors are missing', asyn
   const page = await readFile(path.join(targetDir, 'src/pages/Blog.jsx'), 'utf8');
   assert.match(page, /export default function Blog\(\)/);
   const router = await readFile(routerPath, 'utf8');
-  assert.doesNotMatch(router, /<Blog \/>/);
+  assert.doesNotMatch(router, /pages\/Blog/);
 });

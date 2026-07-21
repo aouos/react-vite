@@ -10,14 +10,29 @@ import {
 import { promptFeatures } from '../prompts.js';
 import { logger } from '../utils/logger.js';
 
+/**
+ * Resolves the --features option: parses it when given, otherwise prompts interactively.
+ * @param {string|undefined} value - Raw --features value.
+ * @returns {Promise<object>} Map of feature key to boolean.
+ */
 export async function resolveFeaturesOption(value) {
   return value === undefined ? promptFeatures() : parseFeatureList(value);
 }
 
+/**
+ * Resolves the --install option into a package manager name or "none".
+ * @param {string} targetDir - Project directory used for lockfile detection.
+ * @param {string|undefined} value - Raw --install value; prompts when omitted.
+ * @returns {Promise<string>} Manager name or "none".
+ */
 export async function resolveInstallOption(targetDir, value) {
   return resolvePackageManager({ targetDir, requested: value });
 }
 
+/**
+ * Prints a labeled summary of the chosen mode, directory, package, features, and installer.
+ * @param {object} options - { targetDir, projectName, features, manager, mode }.
+ */
 export function printSelection({ targetDir, projectName, features, manager, mode }) {
   const names = selectedFeatureNames(features);
   logger.info('');
@@ -28,6 +43,26 @@ export function printSelection({ targetDir, projectName, features, manager, mode
   logger.label('Install', manager === 'none' ? 'Skip' : manager);
 }
 
+/**
+ * Prints the dry-run file list, marking paths that would conflict with existing files.
+ * @param {string[]} paths - Relative paths that would be written.
+ * @param {string[]} conflicts - Subset of paths that already exist with different contents.
+ */
+export function printDryRunPlan(paths, conflicts = []) {
+  const conflictSet = new Set(conflicts);
+  logger.warn('\nDry run — no files were written. Files that would be created:');
+  for (const filePath of paths) {
+    const marker = conflictSet.has(filePath) ? pc.yellow(' (would overwrite or prompt)') : '';
+    logger.info(`  ${filePath}${marker}`);
+  }
+}
+
+/**
+ * Finishes a scaffold: installs dependencies and prints the summary and next steps.
+ * @param {object} options - { targetDir: string, mode: 'create'|'init', manager: string,
+ *   result: object } where result is the scaffoldProject return value.
+ * @returns {Promise<void>}
+ */
 export async function finishProject({
   targetDir,
   mode,

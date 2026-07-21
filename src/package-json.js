@@ -1,5 +1,6 @@
 import { sanitizePackageName } from './names.js';
 
+/** Exact dependency versions rv pins in generated projects and checks with doctor/update. */
 export const TEMPLATE_VERSIONS = Object.freeze({
   react: '19.2.7',
   'react-dom': '19.2.7',
@@ -23,6 +24,7 @@ export const TEMPLATE_VERSIONS = Object.freeze({
   'typescript-eslint': '8.65.0',
 });
 
+/** Node engines range written into generated package.json files. */
 export const GENERATED_NODE_ENGINES = '^20.19.0 || ^22.13.0 || >=24.0.0';
 
 function version(packageName) {
@@ -37,6 +39,12 @@ function sortObject(value = {}) {
   );
 }
 
+/**
+ * Builds the package.json object for a new project based on the selected features.
+ * @param {object} features - Map of feature key to boolean.
+ * @param {string} projectName - Desired package name; sanitized, falls back to "my-app".
+ * @returns {object} Complete package.json contents with sorted dependency maps.
+ */
 export function buildGeneratedPackageJson(features, projectName) {
   const dependencies = {
     react: version('react'),
@@ -116,6 +124,14 @@ export function buildGeneratedPackageJson(features, projectName) {
   };
 }
 
+/**
+ * Merges a generated package.json into an existing one, letting generated scripts,
+ * engines, and dependency versions win while preserving unrelated existing fields.
+ * @param {object} existing - Parsed existing package.json object.
+ * @param {object} generated - Output of buildGeneratedPackageJson.
+ * @returns {object} Merged package.json contents.
+ * @throws {TypeError} When existing is not a plain JSON object.
+ */
 export function mergePackageJson(existing, generated) {
   if (!existing || typeof existing !== 'object' || Array.isArray(existing)) {
     throw new TypeError('Existing package.json must contain a JSON object.');
@@ -170,6 +186,11 @@ export function mergePackageJson(existing, generated) {
   };
 }
 
+/**
+ * Serializes a package.json object with two-space indentation and a trailing newline.
+ * @param {object} packageJson - Package.json contents.
+ * @returns {string} JSON text ready to write to disk.
+ */
 export function serializePackageJson(packageJson) {
   return `${JSON.stringify(packageJson, null, 2)}\n`;
 }

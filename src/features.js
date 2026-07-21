@@ -1,3 +1,7 @@
+/**
+ * Metadata for every optional feature rv can scaffold, in prompt display order.
+ * Each entry has key, name, description, and aliases accepted by --features.
+ */
 export const FEATURE_DEFINITIONS = Object.freeze([
   {
     key: 'typescript',
@@ -31,6 +35,7 @@ export const FEATURE_DEFINITIONS = Object.freeze([
   },
 ]);
 
+/** Canonical feature keys in definition order. */
 export const FEATURE_KEYS = Object.freeze(
   FEATURE_DEFINITIONS.map((feature) => feature.key),
 );
@@ -43,14 +48,28 @@ for (const feature of FEATURE_DEFINITIONS) {
   }
 }
 
+/**
+ * Builds a feature map with every feature disabled.
+ * @returns {object} Map of feature key to false.
+ */
 export function emptyFeatures() {
   return Object.fromEntries(FEATURE_KEYS.map((key) => [key, false]));
 }
 
+/**
+ * Builds a feature map with every feature enabled.
+ * @returns {object} Map of feature key to true.
+ */
 export function allFeatures() {
   return Object.fromEntries(FEATURE_KEYS.map((key) => [key, true]));
 }
 
+/**
+ * Builds a feature map with only the given canonical keys enabled.
+ * @param {string[]} keys - Canonical feature keys to enable.
+ * @returns {object} Map of feature key to boolean.
+ * @throws {Error} When a key is not a known feature.
+ */
 export function featuresFromKeys(keys = []) {
   const result = emptyFeatures();
   for (const key of keys) {
@@ -62,10 +81,20 @@ export function featuresFromKeys(keys = []) {
   return result;
 }
 
+/**
+ * Lists the enabled feature keys from a feature map, in definition order.
+ * @param {object} features - Map of feature key to boolean.
+ * @returns {string[]} Enabled feature keys.
+ */
 export function selectedFeatureKeys(features) {
   return FEATURE_KEYS.filter((key) => Boolean(features?.[key]));
 }
 
+/**
+ * Lists the human-readable names of the enabled features, in definition order.
+ * @param {object} features - Map of feature key to boolean.
+ * @returns {string[]} Display names of enabled features.
+ */
 export function selectedFeatureNames(features) {
   const selected = new Set(selectedFeatureKeys(features));
   return FEATURE_DEFINITIONS.filter((feature) => selected.has(feature.key)).map(
@@ -73,6 +102,12 @@ export function selectedFeatureNames(features) {
   );
 }
 
+/**
+ * Parses a --features value (comma-separated keys/aliases, "all", "none", or "minimal").
+ * @param {string} value - Raw option value from the command line.
+ * @returns {object} Map of feature key to boolean.
+ * @throws {Error} When the list contains unknown feature names.
+ */
 export function parseFeatureList(value) {
   const normalized = String(value ?? '').trim().toLowerCase();
   if (!normalized || normalized === 'none' || normalized === 'minimal') {

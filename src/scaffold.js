@@ -8,6 +8,7 @@ import {
 import { promptConflictStrategy } from './prompts.js';
 import { getTemplateFiles } from './templates.js';
 
+// lstat that returns null for missing paths instead of throwing ENOENT.
 async function pathStat(filePath) {
   try {
     return await lstat(filePath);
@@ -17,6 +18,7 @@ async function pathStat(filePath) {
   }
 }
 
+// Reads and parses package.json (stripping a UTF-8 BOM); returns null when absent.
 async function readExistingPackageJson(targetDir) {
   const packagePath = path.join(targetDir, 'package.json');
   const fileStat = await pathStat(packagePath);
@@ -41,7 +43,14 @@ async function isSameFile(targetDir, file) {
   return current === file.contents;
 }
 
-async function findConflicts(targetDir, files) {
+/**
+ * Finds template files whose destinations already exist with different contents;
+ * files that are byte-identical to the template are not conflicts.
+ * @param {string} targetDir - Project directory.
+ * @param {object[]} files - Template files ({ path, contents }).
+ * @returns {Promise<string[]>} Relative paths of conflicting files.
+ */
+export async function findConflicts(targetDir, files) {
   const conflicts = [];
   for (const file of files) {
     const destination = path.join(targetDir, file.path);
@@ -80,6 +89,13 @@ async function writeProjectFiles(targetDir, files) {
   }
 }
 
+/**
+ * Builds the write plan for a project: template files plus a generated (or, in init
+ * mode, merged) package.json — without touching the filesystem beyond reading.
+ * @param {object} options - { targetDir: string, projectName: string, features: object,
+ *   mode: 'create'|'init' }.
+ * @returns {Promise<object>} { templateFiles, packageFile, packageJson, packageJsonMerged }.
+ */
 export async function buildProjectPlan({ targetDir, projectName, features, mode }) {
   const templateFiles = getTemplateFiles(features, projectName);
   const generatedPackageJson = buildGeneratedPackageJson(features, projectName);
@@ -105,6 +121,16 @@ export async function buildProjectPlan({ targetDir, projectName, features, mode 
   };
 }
 
+/**
+ * Writes a project to disk. Create mode writes everything; init mode detects
+ * conflicts and applies a strategy (overwrite, keep, or cancel), prompting when needed.
+ * @param {object} options - { targetDir, projectName, features, mode: 'create'|'init',
+ *   conflictStrategy?: string, chooseConflictStrategy?: function } — the last is an
+ *   injectable prompt used when conflicts exist and no strategy was given.
+ * @returns {Promise<object>} { cancelled, written: string[], skipped: string[],
+ *   packageJsonMerged }.
+ * @throws {Error} When mode or the resolved conflict strategy is invalid.
+ */
 export async function scaffoldProject({
   targetDir,
   projectName,

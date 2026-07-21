@@ -16,6 +16,8 @@ React Vite
   <img src="https://img.shields.io/npm/l/react-vite.svg" alt="License" />
 </p>
 
+<p align="center">English | <a href="README.zh-CN.md">简体中文</a> | <a href="README.ja.md">日本語</a></p>
+
 > Scaffold a minimal React + Vite project with optional TypeScript, Tailwind
 > CSS, React Router, ESLint + Prettier, and Zustand — pick only what you
 > need, get a project that boots immediately.
@@ -36,8 +38,10 @@ linting — after generating, you still have to wire those up by hand.
 | **React Router with a working demo**     | No                             | Yes — 2 routes (`/`, `/about`)  |
 | **Zustand store + counter demo**         | No                             | Yes                             |
 | **ESLint flat config + Prettier**        | ESLint only, no Prettier       | Both, TS-aware when TS is on    |
+| **`git init` + editor recommendations**  | No                             | Yes — plus `.vscode/extensions.json` |
 | **Init into an existing directory**      | No (`create-*` makes new dirs) | Yes — `rv init` with safe merge |
-| **Generators after scaffolding**         | No                             | Yes — `rv add page <name>`      |
+| **Generators after scaffolding**         | No                             | Yes — `rv add page/component/store` |
+| **Project health check**                 | No                             | Yes — `rv doctor`               |
 | **Runs install for you (npm/pnpm/yarn)** | No                             | Yes — prompts for PM on PATH    |
 
 Every feature is opt-in. Select none and you get the same minimal output as
@@ -76,8 +80,10 @@ rv create my-app
 
 Creates `./my-app` (the directory must be empty or missing), asks which
 features you want and which package manager should install dependencies,
-then scaffolds the project. Omit the directory argument to be prompted
-for it.
+then scaffolds the project and runs `git init` (skipped with `--no-git`, or
+automatically when you are already inside a git repository or git is not
+installed — the first commit is always left to you). Omit the directory
+argument to be prompted for it.
 
 ### Initialize in the current directory
 
@@ -95,25 +101,50 @@ Works in non-empty directories too:
   **overwrite** them, **keep** the existing files, or **cancel** (nothing is
   written).
 
-### Add a page to an existing project
+### Generators: add pieces to an existing project
 
 ```bash
-rv add page blog
-rv add page blog-post
+rv add page blog-post     # lazy-loaded route + nav link (router projects)
+rv add page blog/detail   # nested route paths work too
+rv add component user-card
+rv add store cart         # zustand store (zustand projects)
 ```
 
-In a project scaffolded with the **React Router** feature, this detects
-TypeScript and Tailwind from your `package.json` and:
+Each generator detects TypeScript and Tailwind from your `package.json` and
+writes files in the same style as the rest of the project:
 
-1. generates `src/pages/Blog.tsx` (or `.jsx`) in the same style as the rest
-   of the project,
-2. registers the `/blog` route in `src/router`,
-3. adds a navigation link in `src/layouts/RootLayout`.
+- **`rv add page <name>`** — generates `src/pages/BlogPost.tsx` (or `.jsx`),
+  registers a lazy-loaded `/blog-post` route in `src/router` (so every extra
+  page becomes its own chunk), and adds a navigation link in
+  `src/layouts/RootLayout`. Requires the React Router feature.
+- **`rv add component <name>`** — generates `src/components/UserCard.tsx`.
+- **`rv add store <name>`** — generates `src/store/useCart.ts` with a typed
+  zustand store skeleton. Requires the Zustand feature.
 
-Steps 2–3 rely on the small `// rv:route`-style anchor comments that
-scaffolded projects contain. If you have restructured those files (or the
-project was created before v0.0.7), the page is still generated and `rv`
-prints the exact lines to add manually.
+Route and nav registration rely on the small `// rv:route`-style anchor
+comments that scaffolded projects contain. If you have restructured those
+files (or the project was created before v0.0.7), the page is still
+generated and `rv` prints the exact lines to add manually.
+
+### Check and repair a project's health
+
+```bash
+rv doctor            # report only
+rv update            # pin drifted dependencies back to the rv versions
+rv update --dry-run  # preview what update would change
+```
+
+`rv doctor` reports dependency drift (versions that differ from the set `rv`
+pins and verifies), whether your Node version is supported, and whether the
+rv anchors are still in place so the generators keep working. `rv update`
+applies the dependency part of that report to `package.json`; run your
+package manager's install afterwards.
+
+### Preview any change first
+
+`create`, `init`, and `add` accept `--dry-run`: the command prints exactly
+which files would be written (and, for `init`, which existing files
+conflict) without touching the disk.
 
 ### Interactive prompts
 
@@ -138,25 +169,27 @@ rv create my-app --features typescript,tailwind --install none
 rv init --name my-app --features router,zustand --install pnpm --conflicts keep
 ```
 
-| Option                  | Commands       | Values                                                                                       |
-| ----------------------- | -------------- | -------------------------------------------------------------------------------------------- |
-| `-f, --features <list>` | `create` `init` | Comma-separated: `typescript`, `tailwind`, `router`, `eslint`, `zustand` — or `all` / `none` |
-| `--install <manager>`   | `create` `init` | `npm`, `pnpm`, `yarn`, or `none` to skip installation                                        |
-| `--name <package-name>` | `init`         | Package name (defaults to existing `package.json` or the directory name)                     |
-| `--conflicts <strategy>`| `init`         | `overwrite`, `keep`, or `cancel`                                                             |
+| Option                   | Commands        | Values                                                                                       |
+| ------------------------ | --------------- | -------------------------------------------------------------------------------------------- |
+| `-f, --features <list>`  | `create` `init` | Comma-separated: `typescript`, `tailwind`, `router`, `eslint`, `zustand` — or `all` / `none` |
+| `--install <manager>`    | `create` `init` | `npm`, `pnpm`, `yarn`, or `none` to skip installation                                        |
+| `--name <package-name>`  | `init`          | Package name (defaults to existing `package.json` or the directory name)                     |
+| `--conflicts <strategy>` | `init`          | `overwrite`, `keep`, or `cancel`                                                             |
+| `--no-git`               | `create`        | Skip the automatic `git init`                                                                |
+| `--dry-run`              | `create` `init` `add` `update` | Preview the changes without writing anything                                  |
 
 Feature aliases are accepted: `ts`, `tailwindcss`, `react-router`,
 `react-router-dom`, `lint`, `prettier`, `store`.
 
 ## What each feature adds
 
-| Feature               | What gets added                                                                                                                           |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| **TypeScript**        | Strict `*.tsx` sources, `tsconfig.json` project references (`app` + `node`), a `typecheck` script, `tsc -b` in the build script           |
-| **Tailwind CSS** (v4) | `@tailwindcss/vite` plugin in `vite.config`, `@import 'tailwindcss'` in `src/index.css` — no `tailwind.config.js` or PostCSS needed        |
-| **React Router** (v7) | `src/router`, a layout with navigation, `Home` and `About` pages; `main` renders `<RouterProvider>` instead of `<App />`                  |
+| Feature               | What gets added                                                                                                                                      |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **TypeScript**        | Strict `*.tsx` sources, `tsconfig.json` project references (`app` + `node`), a `typecheck` script, `tsc -b` in the build script                      |
+| **Tailwind CSS** (v4) | `@tailwindcss/vite` plugin in `vite.config`, `@import 'tailwindcss'` in `src/index.css` — no `tailwind.config.js` or PostCSS needed                  |
+| **React Router** (v7) | `src/router`, a layout with navigation, `Home` and `About` pages; non-index routes are code-split via route-level `lazy`                             |
 | **ESLint + Prettier** | `eslint.config.js` (flat config, TS-aware when TypeScript is selected), `.prettierrc.json`, and `lint`, `lint:fix`, `format`, `format:check` scripts |
-| **Zustand**           | `src/store/useCounter` plus a working counter component on the start page                                                                 |
+| **Zustand**           | `src/store/useCounter` plus a working counter component on the start page                                                                            |
 
 Features compose — for example TS + Tailwind + Router + Zustand gives you a
 typed router with a Tailwind-styled counter on the home page out of the box.

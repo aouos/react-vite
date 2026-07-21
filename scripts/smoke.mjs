@@ -104,8 +104,13 @@ try {
   assert.equal(completePackage.dependencies['react-router-dom'], '7.18.1');
   assert.equal(completePackage.dependencies.zustand, '5.0.14');
 
-  runCli(['add', 'page', 'blog-post'], path.join(root, 'complete-js'));
-  runCli(['add', 'page', 'blog-post'], path.join(root, 'complete-ts'));
+  for (const profile of ['complete-js', 'complete-ts']) {
+    const profileDir = path.join(root, profile);
+    runCli(['add', 'page', 'blog-post'], profileDir);
+    runCli(['add', 'component', 'user-card'], profileDir);
+    runCli(['add', 'store', 'cart'], profileDir);
+    runCli(['doctor'], profileDir);
+  }
 
   for (const testCase of projectCases) {
     await validateProject(testCase);

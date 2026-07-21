@@ -27,6 +27,7 @@ const WINDOWS_RESERVED_NAMES = new Set([
 
 const PACKAGE_SEGMENT_PATTERN = /^[a-z0-9][a-z0-9._-]*$/u;
 
+// Lowercases and collapses invalid characters into hyphens to form a valid name segment.
 function sanitizePackageSegment(value) {
   return String(value ?? '')
     .trim()
@@ -37,6 +38,11 @@ function sanitizePackageSegment(value) {
     .replace(/-{2,}/gu, '-');
 }
 
+/**
+ * Validates a project directory name for rv create.
+ * @param {string} value - Candidate directory name.
+ * @returns {true|string} true when valid, otherwise a human-readable error message.
+ */
 export function validateDirectoryName(value) {
   const name = String(value ?? '').trim();
   if (!name) return 'Project directory name is required.';
@@ -56,6 +62,11 @@ export function validateDirectoryName(value) {
   return true;
 }
 
+/**
+ * Normalizes arbitrary input into a valid npm package name, preserving @scope/name form.
+ * @param {string} value - Raw name input.
+ * @returns {string} Sanitized package name, possibly empty when nothing usable remains.
+ */
 export function sanitizePackageName(value) {
   const raw = String(value ?? '').trim();
 
@@ -71,6 +82,11 @@ export function sanitizePackageName(value) {
   return sanitizePackageSegment(raw).slice(0, 214);
 }
 
+/**
+ * Validates an npm package name, including scoped names and Windows-reserved words.
+ * @param {string} value - Candidate package name.
+ * @returns {true|string} true when valid, otherwise a human-readable error message.
+ */
 export function validatePackageName(value) {
   const name = String(value ?? '').trim();
   if (!name) return 'Package name is required.';
@@ -101,10 +117,20 @@ export function validatePackageName(value) {
   return true;
 }
 
+/**
+ * Derives a package name from a directory name, falling back to "my-app".
+ * @param {string} directoryName - Directory name to sanitize.
+ * @returns {string} A non-empty package name.
+ */
 export function packageNameFromDirectory(directoryName) {
   return sanitizePackageName(directoryName) || 'my-app';
 }
 
+/**
+ * Validates a page/component/store name segment for rv add.
+ * @param {string} value - Candidate name (letters, numbers, single hyphens).
+ * @returns {true|string} true when valid, otherwise a human-readable error message.
+ */
 export function validatePageName(value) {
   const name = String(value ?? '').trim();
   if (!name) return 'Page name is required.';
@@ -118,6 +144,11 @@ export function validatePageName(value) {
   return true;
 }
 
+/**
+ * Converts a hyphenated name to a PascalCase React component name (e.g. user-card -> UserCard).
+ * @param {string} value - Hyphenated name.
+ * @returns {string} PascalCase component name.
+ */
 export function pageComponentName(value) {
   return String(value)
     .split('-')
@@ -126,6 +157,21 @@ export function pageComponentName(value) {
     .join('');
 }
 
+/**
+ * Normalizes a page name into a lowercase route path segment.
+ * @param {string} value - Page name.
+ * @returns {string} Lowercased, trimmed route segment.
+ */
 export function pageRoutePath(value) {
   return String(value).trim().toLowerCase();
+}
+
+/**
+ * Builds a Zustand hook name from a store name, avoiding a doubled "use" prefix.
+ * @param {string} value - Store name (e.g. cart or use-cart).
+ * @returns {string} Hook name such as useCart.
+ */
+export function storeHookName(value) {
+  const base = String(value).replace(/^use-?/iu, '');
+  return `use${pageComponentName(base)}`;
 }

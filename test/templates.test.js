@@ -37,6 +37,10 @@ test('all 32 feature combinations produce a coherent file set', () => {
     );
     assert.equal(files.has('eslint.config.js'), features.eslint);
     assert.equal(files.has('.prettierrc.json'), features.eslint);
+    assert.equal(
+      files.has('.vscode/extensions.json'),
+      features.eslint || features.tailwind,
+    );
 
     const css = files.get('src/index.css');
     const viteConfig = files.get(`vite.config.${configExtension}`);

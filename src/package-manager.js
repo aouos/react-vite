@@ -4,6 +4,7 @@ import { promptPackageManager } from './prompts.js';
 import { logger } from './utils/logger.js';
 import { commandExists, runCommand } from './utils/process.js';
 
+/** Package managers rv knows how to detect and run. */
 export const PACKAGE_MANAGERS = Object.freeze(['npm', 'pnpm', 'yarn']);
 
 async function fileExists(filePath) {
@@ -15,10 +16,19 @@ async function fileExists(filePath) {
   }
 }
 
+/**
+ * Detects which supported package managers are available on PATH.
+ * @returns {string[]} Available manager names, in PACKAGE_MANAGERS order.
+ */
 export function detectAvailablePackageManagers() {
   return PACKAGE_MANAGERS.filter(commandExists);
 }
 
+/**
+ * Picks a preferred manager from the target directory's lockfile, then the npm user agent.
+ * @param {string} targetDir - Directory to inspect for lockfiles.
+ * @returns {Promise<string>} Manager name; defaults to "npm".
+ */
 export async function detectPreferredPackageManager(targetDir) {
   const lockFiles = [
     ['pnpm', 'pnpm-lock.yaml'],
@@ -34,6 +44,12 @@ export async function detectPreferredPackageManager(targetDir) {
   return PACKAGE_MANAGERS.includes(userAgent) ? userAgent : 'npm';
 }
 
+/**
+ * Normalizes and validates a --install option value.
+ * @param {string} value - Requested manager or "none".
+ * @returns {string} Lowercased manager name or "none".
+ * @throws {Error} When the value is not a supported manager or "none".
+ */
 export function validateRequestedPackageManager(value) {
   const manager = String(value ?? '').trim().toLowerCase();
   if (manager === 'none' || PACKAGE_MANAGERS.includes(manager)) return manager;
@@ -42,6 +58,13 @@ export function validateRequestedPackageManager(value) {
   );
 }
 
+/**
+ * Resolves the package manager to use: validates an explicit request, or prompts
+ * with the detected preference; returns "none" when nothing is available.
+ * @param {object} options - { targetDir: string, requested: string|undefined }.
+ * @returns {Promise<string>} Manager name or "none".
+ * @throws {Error} When a requested manager is unknown or not on PATH.
+ */
 export async function resolvePackageManager({ targetDir, requested }) {
   const available = detectAvailablePackageManagers();
 
@@ -62,6 +85,12 @@ export async function resolvePackageManager({ targetDir, requested }) {
   return promptPackageManager(available, preferred);
 }
 
+/**
+ * Runs "<manager> install" in the target directory, logging a retry hint on failure.
+ * @param {string} targetDir - Project directory.
+ * @param {string} manager - Manager name or "none" to skip.
+ * @returns {Promise<boolean>} true when installation succeeded.
+ */
 export async function installDependencies(targetDir, manager) {
   if (manager === 'none') return false;
   logger.info(`\nInstalling dependencies with ${manager}...`);
@@ -75,10 +104,21 @@ export async function installDependencies(targetDir, manager) {
   }
 }
 
+/**
+ * Formats the install command for a manager (e.g. "pnpm install").
+ * @param {string} manager - Manager name.
+ * @returns {string} Shell command string.
+ */
 export function installCommand(manager = 'npm') {
   return `${manager} install`;
 }
 
+/**
+ * Formats the command that runs a package.json script with the given manager.
+ * @param {string} manager - Manager name.
+ * @param {string} script - Script name.
+ * @returns {string} Shell command string (npm uses "npm run <script>").
+ */
 export function runScriptCommand(manager = 'npm', script = 'dev') {
   return manager === 'npm' ? `npm run ${script}` : `${manager} ${script}`;
 }
