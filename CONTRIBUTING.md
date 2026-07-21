@@ -1,9 +1,11 @@
 # Contribution guidelines
 
-1. fork repository
-2. clone repository to your local
-3. crete a new branch （git checkout -b feat/xxx）
-4. push code to your repository (git push origin feat/xxx)
-5. pull request
+1. Fork the repository
+2. Clone it to your machine
+3. Create a new branch (`git checkout -b feat/xxx`)
+4. Make your change; run `pnpm test` (and `pnpm smoke` for scaffold changes)
+5. Push the branch to your fork (`git push origin feat/xxx`)
+6. Open a pull request
 
-[Angular Convention](https://github.com/conventional-changelog/conventional-changelog/tree/master/packages/conventional-changelog-angular)
+Commit messages follow the
+[Angular Convention](https://github.com/conventional-changelog/conventional-changelog/tree/master/packages/conventional-changelog-angular).

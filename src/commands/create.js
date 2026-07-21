@@ -1,27 +1,66 @@
-const path = require('path');
-const fs = require('fs-extra');
-const { collectFeatures } = require('../prompts');
-const scaffold = require('../scaffold');
-const logger = require('../util/logger');
+import { lstat, readdir, rm } from 'node:fs/promises';
+import path from 'node:path';
+import {
+  packageNameFromDirectory,
+  validateDirectoryName,
+} from '../names.js';
+import { promptDirectoryName } from '../prompts.js';
+import { scaffoldProject } from '../scaffold.js';
+import {
+  finishProject,
+  printSelection,
+  resolveFeaturesOption,
+  resolveInstallOption,
+} from './common.js';
 
-const NAME_RE = /^[a-zA-Z0-9._-]+$/;
-
-module.exports = async function create(projectName) {
-  if (!projectName || !NAME_RE.test(projectName) || projectName === '.' || projectName === '..') {
-    logger.error(`Invalid project name: "${projectName}"`);
-    logger.plain('Name must match /^[a-zA-Z0-9._-]+$/ and cannot be "." or "..".');
-    process.exit(1);
-  }
-
-  const targetDir = path.resolve(process.cwd(), projectName);
-  if (fs.existsSync(targetDir)) {
-    const entries = fs.readdirSync(targetDir).filter((n) => n !== '.git');
-    if (entries.length > 0) {
-      logger.error(`Directory "${projectName}" already exists and is not empty. Aborting.`);
-      process.exit(1);
+async function getTargetState(targetDir) {
+  try {
+    const targetStat = await lstat(targetDir);
+    if (!targetStat.isDirectory()) {
+      throw new Error(`Target path exists and is not a directory: ${targetDir}`);
     }
+    const entries = (await readdir(targetDir)).filter((entry) => entry !== '.git');
+    return { exists: true, empty: entries.length === 0 };
+  } catch (error) {
+    if (error?.code === 'ENOENT') return { exists: false, empty: true };
+    throw error;
+  }
+}
+
+export async function createCommand(projectDirectory, options = {}) {
+  let directoryName = projectDirectory;
+  if (!directoryName) {
+    directoryName = await promptDirectoryName();
+  }
+  directoryName = String(directoryName).trim();
+
+  const validation = validateDirectoryName(directoryName);
+  if (validation !== true) throw new Error(validation);
+
+  const targetDir = path.resolve(process.cwd(), directoryName);
+  const targetState = await getTargetState(targetDir);
+  if (!targetState.empty) {
+    throw new Error(`Directory "${directoryName}" already exists and is not empty.`);
   }
 
-  const { projectName: chosenName, features } = await collectFeatures({ defaultName: projectName });
-  await scaffold.run({ targetDir, projectName: chosenName, features, mode: 'create' });
-};
+  const projectName = packageNameFromDirectory(directoryName);
+  const features = await resolveFeaturesOption(options.features);
+  const manager = await resolveInstallOption(targetDir, options.install);
+
+  printSelection({ targetDir, projectName, features, manager, mode: 'create' });
+
+  try {
+    const result = await scaffoldProject({
+      targetDir,
+      projectName,
+      features,
+      mode: 'create',
+    });
+    await finishProject({ targetDir, mode: 'create', manager, result });
+  } catch (error) {
+    if (!targetState.exists) {
+      await rm(targetDir, { recursive: true, force: true }).catch(() => {});
+    }
+    throw error;
+  }
+}
