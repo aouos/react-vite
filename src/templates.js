@@ -9,21 +9,21 @@
  * "{/* rv:nav *\/}" in RootLayout — that "rv add page" uses to insert new routes and
  * navigation links. Removing the anchors downgrades rv add to printing manual steps.
  */
-import { selectedFeatureNames } from './features.js';
+import { selectedFeatureNames, shadcnEnabled } from './features.js';
 
-function withNewline(value) {
+function withNewline(/** @type {string} */ value) {
   return `${value.trim()}\n`;
 }
 
-function sourceExtension(features) {
+function sourceExtension(/** @type {Features} */ features) {
   return features.typescript ? 'tsx' : 'jsx';
 }
 
-function configExtension(features) {
+function configExtension(/** @type {Features} */ features) {
   return features.typescript ? 'ts' : 'js';
 }
 
-function escapeHtml(value) {
+function escapeHtml(/** @type {string} */ value) {
   return String(value)
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
@@ -34,7 +34,7 @@ function escapeHtml(value) {
 
 // Renders the selected-features array literal, breaking onto multiple lines exactly
 // when Prettier (printWidth 100) would, so generated files stay format-stable.
-function featureArray(features) {
+function featureArray(/** @type {Features} */ features) {
   const names = selectedFeatureNames(features);
   const values = names.length > 0 ? names : ['Minimal React + Vite'];
   const quoted = values.map((name) => `'${name.replaceAll("'", "\\'")}'`);
@@ -47,7 +47,7 @@ function featureArray(features) {
   return `[\n${quoted.map((value) => `  ${value},`).join('\n')}\n]`;
 }
 
-function indexHtml(features, projectName) {
+function indexHtml(/** @type {Features} */ features, /** @type {string} */ projectName) {
   const extension = sourceExtension(features);
   const title = escapeHtml(projectName);
   return withNewline(`
@@ -67,7 +67,8 @@ function indexHtml(features, projectName) {
 `);
 }
 
-function viteConfig(features) {
+function viteConfig(/** @type {Features} */ features) {
+  const shadcn = shadcnEnabled(features);
   const imports = [
     "import { defineConfig } from 'vite';",
     "import react from '@vitejs/plugin-react';",
@@ -78,12 +79,24 @@ function viteConfig(features) {
     imports.push("import tailwindcss from '@tailwindcss/vite';");
     plugins.push('tailwindcss()');
   }
+  if (shadcn) {
+    imports.unshift("import { fileURLToPath } from 'node:url';");
+  }
+
+  const resolve = shadcn
+    ? `
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
+  },`
+    : '';
 
   return withNewline(`
 ${imports.join('\n')}
 
 export default defineConfig({
-  plugins: [${plugins.join(', ')}],
+  plugins: [${plugins.join(', ')}],${resolve}
 });
 `);
 }
@@ -113,7 +126,14 @@ function tsconfigRoot() {
 `);
 }
 
-function tsconfigApp() {
+function tsconfigApp(/** @type {Features} */ features) {
+  // paths without baseUrl (resolved relative to this file) — baseUrl is deprecated in TS 6.
+  const paths = shadcnEnabled(features)
+    ? `,
+    "paths": {
+      "@/*": ["./src/*"]
+    }`
+    : '';
   return withNewline(`
 {
   "compilerOptions": {
@@ -135,7 +155,7 @@ function tsconfigApp() {
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
-    "erasableSyntaxOnly": true
+    "erasableSyntaxOnly": true${paths}
   },
   "include": ["src"]
 }
@@ -168,7 +188,11 @@ function tsconfigNode() {
 `);
 }
 
-function indexCss(features) {
+function indexCss(/** @type {Features} */ features) {
+  if (shadcnEnabled(features)) {
+    return shadcnIndexCss();
+  }
+
   if (features.tailwind) {
     return withNewline(`
 @import 'tailwindcss';
@@ -432,7 +456,135 @@ h2 {
 `);
 }
 
-function mainSource(features) {
+// The standard shadcn/ui (Tailwind v4, "new-york", neutral base) theme: design tokens as
+// CSS variables for light and dark, mapped into Tailwind via @theme inline. Kept byte-stable
+// under the generated project's Prettier config so format:check on a fresh project is a no-op.
+function shadcnIndexCss() {
+  return withNewline(`
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+`);
+}
+
+function mainSource(/** @type {Features} */ features) {
   const extension = sourceExtension(features);
   const targetAssertion = features.typescript ? '!' : '';
   const appImport = features.router
@@ -454,7 +606,7 @@ createRoot(document.getElementById('root')${targetAssertion}).render(
 `);
 }
 
-function featurePills(features, tailwind) {
+function featurePills(/** @type {Features} */ features, /** @type {boolean} */ tailwind) {
   const list = featureArray(features);
   if (tailwind) {
     return `
@@ -492,7 +644,7 @@ function FeatureList() {
 }`;
 }
 
-function appSource(features) {
+function appSource(/** @type {Features} */ features) {
   const counterImport = features.zustand
     ? "import Counter from './components/Counter';\n"
     : '';
@@ -546,7 +698,7 @@ export default function App() {
 `);
 }
 
-function storeSource(features) {
+function storeSource(/** @type {Features} */ features) {
   if (features.typescript) {
     return withNewline(`
 import { create } from 'zustand';
@@ -579,7 +731,7 @@ export const useCounter = create((set) => ({
 `);
 }
 
-function counterSource(features) {
+function counterSource(/** @type {Features} */ features) {
   if (features.tailwind) {
     return withNewline(`
 import { useCounter } from '../store/useCounter';
@@ -690,7 +842,7 @@ export const router = createBrowserRouter([
 `);
 }
 
-function rootLayoutSource(features) {
+function rootLayoutSource(/** @type {Features} */ features) {
   const navParameter = features.typescript
     ? '{ isActive }: { isActive: boolean }'
     : '{ isActive }';
@@ -765,7 +917,7 @@ export default function RootLayout() {
 `);
 }
 
-function homeSource(features) {
+function homeSource(/** @type {Features} */ features) {
   const counterImport = features.zustand
     ? "import Counter from '../components/Counter';\n"
     : '';
@@ -834,7 +986,7 @@ export default function Home() {
 `);
 }
 
-function aboutSource(features) {
+function aboutSource(/** @type {Features} */ features) {
   if (features.tailwind) {
     return withNewline(`
 import { Link } from 'react-router-dom';
@@ -893,7 +1045,7 @@ export default function About() {
 `);
 }
 
-function eslintConfig(features) {
+function eslintConfig(/** @type {Features} */ features) {
   const extensions = features.typescript ? 'ts,tsx' : 'js,jsx';
   const imports = [
     "import eslint from '@eslint/js';",
@@ -915,11 +1067,15 @@ function eslintConfig(features) {
     imports.splice(5, 0, "import typescriptEslint from 'typescript-eslint';");
   }
 
+  const ignores = shadcnEnabled(features)
+    ? "['dist', 'node_modules', 'src/components/ui']"
+    : "['dist', 'node_modules']";
+
   return withNewline(`
 ${imports.join('\n')}
 
 export default defineConfig([
-  globalIgnores(['dist', 'node_modules']),
+  globalIgnores(${ignores}),
   {
     files: ['**/*.{${extensions}}'],
     extends: [
@@ -949,7 +1105,7 @@ function prettierConfig() {
 `);
 }
 
-function vscodeExtensions(features) {
+function vscodeExtensions(/** @type {Features} */ features) {
   const recommendations = [];
   if (features.eslint) {
     recommendations.push('dbaeumer.vscode-eslint', 'esbenp.prettier-vscode');
@@ -971,18 +1127,18 @@ function vscodeExtensions(features) {
 `);
 }
 
-function prettierIgnore() {
-  return withNewline(`
-node_modules/
-dist/
-coverage/
-`);
+function prettierIgnore(/** @type {Features} */ features) {
+  const lines = ['node_modules/', 'dist/', 'coverage/'];
+  if (shadcnEnabled(features)) {
+    lines.push('src/components/ui/');
+  }
+  return withNewline(`\n${lines.join('\n')}\n`);
 }
 
 /**
  * Renders the source for a page created by "rv add page". Uses const title/source
  * indirection so long paths never push JSX lines past Prettier's printWidth.
- * @param {object} features - Detected feature map (typescript, tailwind, ...).
+ * @param {Features} features - Detected feature map (typescript, tailwind, ...).
  * @param {string} componentName - PascalCase page component name.
  * @returns {string} Page module source code.
  */
@@ -1035,7 +1191,7 @@ export default function ${componentName}() {
 
 /**
  * Renders the source for a component created by "rv add component".
- * @param {object} features - Detected feature map (typescript, tailwind, ...).
+ * @param {Features} features - Detected feature map (typescript, tailwind, ...).
  * @param {string} componentName - PascalCase component name.
  * @returns {string} Component module source code.
  */
@@ -1083,7 +1239,7 @@ export default function ${componentName}() {
 
 /**
  * Renders the source for a Zustand store created by "rv add store".
- * @param {object} features - Detected feature map; typescript switches to a typed store.
+ * @param {Features} features - Detected feature map; typescript switches to a typed store.
  * @param {string} hookName - Hook name such as useCart.
  * @param {string} typeName - State type name used in the TypeScript variant.
  * @returns {string} Store module source code.
@@ -1119,10 +1275,204 @@ export const ${hookName} = create((set) => ({
 }
 
 /**
+ * Renders the source for a React hook created by "rv add hook". The example holds a
+ * single value with a reset helper; the state shape is name-agnostic on purpose.
+ * @param {Features} features - Detected feature map; typescript adds a generic value type.
+ * @param {string} hookName - Hook name such as useCart.
+ * @returns {string} Hook module source code.
+ */
+export function addedHookSource(features, hookName) {
+  const doc =
+    '/**\n * Example hook generated by rv add hook. Replace the state and return value with your own.\n */';
+
+  if (features.typescript) {
+    return withNewline(`
+import { useCallback, useState } from 'react';
+
+${doc}
+export function ${hookName}<T>(initialValue: T) {
+  const [value, setValue] = useState(initialValue);
+  const reset = useCallback(() => setValue(initialValue), [initialValue]);
+  return { value, setValue, reset };
+}
+`);
+  }
+
+  return withNewline(`
+import { useCallback, useState } from 'react';
+
+${doc}
+export function ${hookName}(initialValue) {
+  const [value, setValue] = useState(initialValue);
+  const reset = useCallback(() => setValue(initialValue), [initialValue]);
+  return { value, setValue, reset };
+}
+`);
+}
+
+/**
+ * Renders the source for a layout created by "rv add layout". Uses const title
+ * indirection so long names never push the JSX past Prettier's printWidth, and renders
+ * an <Outlet /> so the layout can wrap a group of nested routes.
+ * @param {Features} features - Detected feature map (typescript, tailwind, ...).
+ * @param {string} componentName - PascalCase layout name ending in "Layout".
+ * @returns {string} Layout module source code.
+ */
+export function addedLayoutSource(features, componentName) {
+  const title = componentName.replace(/(?<!^)([A-Z])/gu, ' $1');
+  const constant = `const title = '${title}';`;
+
+  if (features.tailwind) {
+    return withNewline(`
+import { Outlet } from 'react-router-dom';
+
+${constant}
+
+export default function ${componentName}() {
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-900">
+      <header className="border-b border-slate-200 bg-white px-6 py-4">
+        <p className="text-sm font-bold tracking-tight text-slate-700">{title}</p>
+      </header>
+      <main className="mx-auto max-w-6xl px-6 py-10">
+        <Outlet />
+      </main>
+    </div>
+  );
+}
+`);
+  }
+
+  return withNewline(`
+import { Outlet } from 'react-router-dom';
+
+${constant}
+
+export default function ${componentName}() {
+  return (
+    <div className="site-shell">
+      <header className="site-header">
+        <p className="brand">{title}</p>
+      </header>
+      <main className="page">
+        <Outlet />
+      </main>
+    </div>
+  );
+}
+`);
+}
+
+// The shadcn/ui config file that "npx shadcn add <component>" reads. Points at the project's
+// @/ aliases and the Tailwind-v4 CSS-variables theme in src/index.css.
+function shadcnComponentsJson() {
+  return withNewline(`
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "new-york",
+  "rsc": false,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "src/index.css",
+    "baseColor": "neutral",
+    "cssVariables": true,
+    "prefix": ""
+  },
+  "aliases": {
+    "components": "@/components",
+    "utils": "@/lib/utils",
+    "ui": "@/components/ui",
+    "lib": "@/lib",
+    "hooks": "@/hooks"
+  },
+  "iconLibrary": "lucide"
+}
+`);
+}
+
+// The cn() helper every shadcn component imports from @/lib/utils: clsx for conditional
+// classes, tailwind-merge to resolve conflicting Tailwind utilities.
+function shadcnUtils() {
+  return withNewline(`
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+`);
+}
+
+// The canonical shadcn/ui Button (new-york), emitted verbatim into src/components/ui so it is
+// byte-identical to what "npx shadcn add button" produces and can be upgraded in place. That
+// directory is excluded from the generated project's ESLint and Prettier runs (vendored code),
+// so this source only has to satisfy TypeScript, not the project's lint/format rules.
+function shadcnButton() {
+  return withNewline(`
+import { type ComponentProps } from 'react';
+import { Slot } from '@radix-ui/react-slot';
+import { cva, type VariantProps } from 'class-variance-authority';
+
+import { cn } from '@/lib/utils';
+
+const buttonVariants = cva(
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 aria-invalid:border-destructive",
+  {
+    variants: {
+      variant: {
+        default: 'bg-primary text-primary-foreground shadow-xs hover:bg-primary/90',
+        destructive:
+          'bg-destructive text-white shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20',
+        outline: 'border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground',
+        secondary: 'bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80',
+        ghost: 'hover:bg-accent hover:text-accent-foreground',
+        link: 'text-primary underline-offset-4 hover:underline',
+      },
+      size: {
+        default: 'h-9 px-4 py-2 has-[>svg]:px-3',
+        sm: 'h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5',
+        lg: 'h-10 rounded-md px-6 has-[>svg]:px-4',
+        icon: 'size-9',
+      },
+    },
+    defaultVariants: {
+      variant: 'default',
+      size: 'default',
+    },
+  },
+);
+
+function Button({
+  className,
+  variant,
+  size,
+  asChild = false,
+  ...props
+}: ComponentProps<'button'> &
+  VariantProps<typeof buttonVariants> & {
+    asChild?: boolean;
+  }) {
+  const Comp = asChild ? Slot : 'button';
+
+  return (
+    <Comp
+      data-slot="button"
+      className={cn(buttonVariants({ variant, size, className }))}
+      {...props}
+    />
+  );
+}
+
+export { Button, buttonVariants };
+`);
+}
+
+/**
  * Builds the full list of template files for the selected features (package.json excluded).
- * @param {object} features - Map of feature key to boolean.
+ * @param {Features} features - Map of feature key to boolean.
  * @param {string} projectName - Project name used in index.html.
- * @returns {object[]} Files as { path, contents }, sorted by path.
+ * @returns {TemplateFile[]} Files as { path, contents }, sorted by path.
  */
 export function getTemplateFiles(features, projectName) {
   const extension = sourceExtension(features);
@@ -1137,7 +1487,7 @@ export function getTemplateFiles(features, projectName) {
 
   if (features.router) {
     files.push(
-      { path: `src/router.${extension}`, contents: routerSource(features) },
+      { path: `src/router.${extension}`, contents: routerSource() },
       {
         path: `src/layouts/RootLayout.${extension}`,
         contents: rootLayoutSource(features),
@@ -1165,7 +1515,7 @@ export function getTemplateFiles(features, projectName) {
   if (features.typescript) {
     files.push(
       { path: 'tsconfig.json', contents: tsconfigRoot() },
-      { path: 'tsconfig.app.json', contents: tsconfigApp() },
+      { path: 'tsconfig.app.json', contents: tsconfigApp(features) },
       { path: 'tsconfig.node.json', contents: tsconfigNode() },
     );
   }
@@ -1174,7 +1524,15 @@ export function getTemplateFiles(features, projectName) {
     files.push(
       { path: 'eslint.config.js', contents: eslintConfig(features) },
       { path: '.prettierrc.json', contents: prettierConfig() },
-      { path: '.prettierignore', contents: prettierIgnore() },
+      { path: '.prettierignore', contents: prettierIgnore(features) },
+    );
+  }
+
+  if (shadcnEnabled(features)) {
+    files.push(
+      { path: 'components.json', contents: shadcnComponentsJson() },
+      { path: 'src/lib/utils.ts', contents: shadcnUtils() },
+      { path: 'src/components/ui/button.tsx', contents: shadcnButton() },
     );
   }
 

@@ -4,10 +4,13 @@ import { promptPackageManager } from './prompts.js';
 import { logger } from './utils/logger.js';
 import { commandExists, runCommand } from './utils/process.js';
 
-/** Package managers rv knows how to detect and run. */
+/**
+ * Package managers rv knows how to detect and run.
+ * @type {readonly string[]}
+ */
 export const PACKAGE_MANAGERS = Object.freeze(['npm', 'pnpm', 'yarn']);
 
-async function fileExists(filePath) {
+async function fileExists(/** @type {string} */ filePath) {
   try {
     await access(filePath);
     return true;
@@ -40,7 +43,7 @@ export async function detectPreferredPackageManager(targetDir) {
     if (await fileExists(path.join(targetDir, lockFile))) return manager;
   }
 
-  const userAgent = process.env.npm_config_user_agent?.split('/')[0];
+  const userAgent = process.env.npm_config_user_agent?.split('/')[0] ?? '';
   return PACKAGE_MANAGERS.includes(userAgent) ? userAgent : 'npm';
 }
 
@@ -61,7 +64,8 @@ export function validateRequestedPackageManager(value) {
 /**
  * Resolves the package manager to use: validates an explicit request, or prompts
  * with the detected preference; returns "none" when nothing is available.
- * @param {object} options - { targetDir: string, requested: string|undefined }.
+ * @param {{ targetDir: string, requested?: string }} options - Directory to inspect and an
+ *   optional explicit request.
  * @returns {Promise<string>} Manager name or "none".
  * @throws {Error} When a requested manager is unknown or not on PATH.
  */

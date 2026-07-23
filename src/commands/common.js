@@ -1,6 +1,6 @@
 import path from 'node:path';
 import pc from 'picocolors';
-import { parseFeatureList, selectedFeatureNames } from '../features.js';
+import { normalizeFeatures, parseFeatureList, selectedFeatureNames } from '../features.js';
 import {
   installCommand,
   installDependencies,
@@ -13,10 +13,11 @@ import { logger } from '../utils/logger.js';
 /**
  * Resolves the --features option: parses it when given, otherwise prompts interactively.
  * @param {string|undefined} value - Raw --features value.
- * @returns {Promise<object>} Map of feature key to boolean.
+ * @returns {Promise<Features>} Map of feature key to boolean.
  */
 export async function resolveFeaturesOption(value) {
-  return value === undefined ? promptFeatures() : parseFeatureList(value);
+  const features = value === undefined ? await promptFeatures() : parseFeatureList(value);
+  return normalizeFeatures(features);
 }
 
 /**
@@ -31,7 +32,8 @@ export async function resolveInstallOption(targetDir, value) {
 
 /**
  * Prints a labeled summary of the chosen mode, directory, package, features, and installer.
- * @param {object} options - { targetDir, projectName, features, manager, mode }.
+ * @param {{ targetDir: string, projectName: string, features: Features, manager: string,
+ *   mode: 'create' | 'init' }} options - Selection summary fields.
  */
 export function printSelection({ targetDir, projectName, features, manager, mode }) {
   const names = selectedFeatureNames(features);
@@ -59,8 +61,8 @@ export function printDryRunPlan(paths, conflicts = []) {
 
 /**
  * Finishes a scaffold: installs dependencies and prints the summary and next steps.
- * @param {object} options - { targetDir: string, mode: 'create'|'init', manager: string,
- *   result: object } where result is the scaffoldProject return value.
+ * @param {{ targetDir: string, mode: 'create' | 'init', manager: string,
+ *   result: ScaffoldResult }} options - Where result is the scaffoldProject return value.
  * @returns {Promise<void>}
  */
 export async function finishProject({
@@ -89,5 +91,8 @@ export async function finishProject({
     logger.info(`  ${pc.cyan(installCommand(commandManager))}`);
   }
   logger.info(`  ${pc.cyan(runScriptCommand(commandManager, 'dev'))}`);
+
+  logger.info(pc.dim('\nGrow the project with rv add page|component|store|hook|layout.'));
+  logger.info(pc.dim('Run rv doctor to check dependency health, or rv --help for all commands.'));
   logger.info('');
 }

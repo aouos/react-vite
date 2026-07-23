@@ -19,7 +19,7 @@ React Vite
 <p align="center"><a href="README.md">English</a> | 简体中文 | <a href="README.ja.md">日本語</a></p>
 
 > 交互式创建极简的 React + Vite 项目，可按需勾选 TypeScript、Tailwind CSS、
-> React Router、ESLint + Prettier、Zustand —— 只装你需要的，生成即可运行。
+> React Router、ESLint + Prettier、Zustand、shadcn/ui —— 只装你需要的，生成即可运行。
 
 ## 为什么用 `rv` 而不是 `npm create vite@latest`？
 
@@ -33,10 +33,11 @@ lint —— 生成之后这些都要自己手动接线。`rv` 把这些补齐了
 | **Tailwind v4（完整接线）**               | 无，需手动配置             | 有 —— 插件 + CSS `@import` 就绪      |
 | **React Router 可运行示例**               | 无                         | 有 —— 两个路由（`/`、`/about`）      |
 | **Zustand store + 计数器示例**            | 无                         | 有                                   |
+| **shadcn/ui（Tailwind v4）就绪**          | 无                         | 有 —— 主题、`cn()`、示例 `Button`    |
 | **ESLint 扁平配置 + Prettier**            | 仅 ESLint，无 Prettier     | 两者都有，选 TS 时自动 TS 化         |
 | **`git init` + 编辑器插件推荐**           | 无                         | 有 —— 附 `.vscode/extensions.json`   |
 | **在已有目录中初始化**                    | 无（`create-*` 只建新目录）| 有 —— `rv init` 安全合并             |
-| **脚手架之后的生成器**                    | 无                         | 有 —— `rv add page/component/store`  |
+| **脚手架之后的生成器**                    | 无                         | 有 —— `rv add page/component/store/hook/layout`  |
 | **项目健康检查**                          | 无                         | 有 —— `rv doctor`                    |
 | **代安装依赖（npm/pnpm/yarn）**           | 无                         | 有 —— 自动探测 PATH 中的包管理器     |
 
@@ -97,6 +98,8 @@ rv add page blog-post     # 懒加载路由 + 导航链接（需 router）
 rv add page blog/detail   # 也支持嵌套路由路径
 rv add component user-card
 rv add store cart         # zustand store（需 zustand）
+rv add hook toggle        # src/hooks/useToggle
+rv add layout admin       # Outlet 布局（需 router）
 ```
 
 每个生成器都会从 `package.json` 探测 TypeScript 和 Tailwind，用和项目其余
@@ -108,6 +111,11 @@ rv add store cart         # zustand store（需 zustand）
 - **`rv add component <name>`** —— 生成 `src/components/UserCard.tsx`。
 - **`rv add store <name>`** —— 生成 `src/store/useCart.ts`，带类型的 zustand
   store 骨架。需要 Zustand 功能。
+- **`rv add hook <name>`** —— 生成 `src/hooks/useToggle.ts`（或 `.js`），一个
+  以 `use` 开头、可供扩展的小型 React hook。
+- **`rv add layout <name>`** —— 生成带 `<Outlet />` 的
+  `src/layouts/AdminLayout.tsx`，并打印如何在它下面嵌套路由。需要 React
+  Router 功能。
 
 路由和导航的自动注册依赖脚手架项目中 `// rv:route` 之类的锚点注释。如果你
 重构过这些文件（或项目由 v0.0.7 之前的版本创建），页面仍会生成，`rv` 会
@@ -136,7 +144,8 @@ rv update --dry-run  # 预览 update 会改什么
 
 1. **项目目录**（`create`）或**包名**（`init`）
 2. **可选功能** —— 多选框：TypeScript、Tailwind CSS、React Router、
-   ESLint + Prettier、Zustand，全部 32 种组合都受支持且经过测试。
+   ESLint + Prettier、Zustand、shadcn/ui，每一种组合都受支持且经过测试
+   （勾选 shadcn/ui 会自动启用 TypeScript 和 Tailwind）。
 3. **依赖安装** —— 从 `PATH` 中探测到的包管理器里选（npm / pnpm / yarn，
    有 lockfile 的优先预选），或跳过安装。
 
@@ -152,7 +161,7 @@ rv init --name my-app --features router,zustand --install pnpm --conflicts keep
 
 | 参数                     | 命令                           | 取值                                                                          |
 | ------------------------ | ------------------------------ | ----------------------------------------------------------------------------- |
-| `-f, --features <list>`  | `create` `init`                | 逗号分隔：`typescript`、`tailwind`、`router`、`eslint`、`zustand`，或 `all` / `none` |
+| `-f, --features <list>`  | `create` `init`                | 逗号分隔：`typescript`、`tailwind`、`router`、`eslint`、`zustand`、`shadcn`，或 `all` / `none` |
 | `--install <manager>`    | `create` `init`                | `npm`、`pnpm`、`yarn`，或 `none` 跳过安装                                     |
 | `--name <package-name>`  | `init`                         | 包名（默认取已有 `package.json` 或目录名）                                    |
 | `--conflicts <strategy>` | `init`                         | `overwrite`、`keep` 或 `cancel`                                               |
@@ -160,7 +169,7 @@ rv init --name my-app --features router,zustand --install pnpm --conflicts keep
 | `--dry-run`              | `create` `init` `add` `update` | 预览改动，不写任何文件                                                        |
 
 功能名支持别名：`ts`、`tailwindcss`、`react-router`、`react-router-dom`、
-`lint`、`prettier`、`store`。
+`lint`、`prettier`、`store`、`shadcn-ui`、`ui`。
 
 ## 每个功能会加什么
 
@@ -171,9 +180,12 @@ rv init --name my-app --features router,zustand --install pnpm --conflicts keep
 | **React Router**（v7）| `src/router`、带导航的布局、`Home` 和 `About` 页面；非首页路由通过 route-level `lazy` 自动分包                               |
 | **ESLint + Prettier** | `eslint.config.js`（扁平配置，选 TS 时自动 TS 化）、`.prettierrc.json`，以及 `lint`、`lint:fix`、`format`、`format:check` 脚本 |
 | **Zustand**           | `src/store/useCounter` 和首页上可用的计数器组件                                                                              |
+| **shadcn/ui**         | `components.json`、`src/lib/utils` 中的 `cn()`、Tailwind v4 主题（浅色/深色 CSS 变量）、`@/` 导入别名（Vite + tsconfig），以及 `src/components/ui` 中的示例 `Button`。隐含启用 TypeScript + Tailwind |
 
 功能可以自由组合 —— 比如 TS + Tailwind + Router + Zustand 会得到带类型的
-路由和 Tailwind 样式的首页计数器，开箱即用。
+路由和 Tailwind 样式的首页计数器，开箱即用。加上 shadcn/ui，
+`npx shadcn@latest add <component>` 即刻可用 —— `src/components/ui`
+会被当作 vendored（外部引入）代码，排除在 lint / format 之外。
 
 ## 脚手架之后
 
@@ -203,6 +215,7 @@ npm run dev
 - React Router 7（选 Router 时）
 - Zustand 5（选 Zustand 时）
 - ESLint 10 扁平配置 · `typescript-eslint` 8 · Prettier 3（选 ESLint 时）
+- shadcn/ui 依赖：`class-variance-authority`、`clsx`、`tailwind-merge`、`@radix-ui/react-slot`、`tw-animate-css`（选 shadcn/ui 时）
 
 每次发版都会经过冒烟测试：真实生成、安装、构建、类型检查并 lint 四种项目
 组合（最小/全功能 × JS/TS）。

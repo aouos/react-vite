@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  layoutComponentName,
   packageNameFromDirectory,
   sanitizePackageName,
+  storeHookName,
   validateDirectoryName,
   validatePackageName,
 } from '../src/names.js';
@@ -28,4 +30,12 @@ test('package name validation accepts npm-style scoped and unscoped names', () =
   assert.match(validatePackageName('@scope'), /@scope\/name/);
   assert.match(validatePackageName('My-App'), /lowercase/);
   assert.match(validatePackageName('scope/name'), /only contain a slash/);
+});
+
+test('hook and layout names normalize their prefixes and suffixes', () => {
+  assert.equal(storeHookName('cart'), 'useCart');
+  assert.equal(storeHookName('use-session'), 'useSession');
+  assert.equal(layoutComponentName('admin'), 'AdminLayout');
+  assert.equal(layoutComponentName('admin-layout'), 'AdminLayout');
+  assert.equal(layoutComponentName('user-dashboard'), 'UserDashboardLayout');
 });

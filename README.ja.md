@@ -19,8 +19,8 @@ React Vite
 <p align="center"><a href="README.md">English</a> | <a href="README.zh-CN.md">简体中文</a> | 日本語</p>
 
 > ミニマルな React + Vite プロジェクトを対話式で作成。TypeScript、Tailwind
-> CSS、React Router、ESLint + Prettier、Zustand を必要なものだけ選択 ——
-> 生成後すぐに起動できます。
+> CSS、React Router、ESLint + Prettier、Zustand、shadcn/ui を必要なものだけ
+> 選択 —— 生成後すぐに起動できます。
 
 ## `npm create vite@latest` ではなく `rv` を使う理由
 
@@ -35,10 +35,11 @@ Vite 公式のスキャフォールドはフレームワークと JS/TS の選�
 | **Tailwind v4（配線済み）**                | なし（手動設定）               | あり —— プラグイン + CSS `@import`    |
 | **React Router の動作サンプル**            | なし                           | あり —— 2 ルート（`/`、`/about`）     |
 | **Zustand ストア + カウンター例**          | なし                           | あり                                  |
+| **shadcn/ui（Tailwind v4）対応**           | なし                           | あり —— テーマ、`cn()`、`Button` 例   |
 | **ESLint フラット設定 + Prettier**         | ESLint のみ、Prettier なし     | 両方。TS 選択時は TS 対応             |
 | **`git init` + エディタ拡張の推奨**        | なし                           | あり —— `.vscode/extensions.json` 付き |
 | **既存ディレクトリへの初期化**             | なし（`create-*` は新規のみ）  | あり —— `rv init` で安全にマージ      |
-| **生成後のジェネレーター**                 | なし                           | あり —— `rv add page/component/store` |
+| **生成後のジェネレーター**                 | なし                           | あり —— `rv add page/component/store/hook/layout` |
 | **プロジェクトのヘルスチェック**           | なし                           | あり —— `rv doctor`                   |
 | **依存関係のインストール代行**             | なし                           | あり —— PATH 上の PM を自動検出       |
 
@@ -103,6 +104,8 @@ rv add page blog-post     # 遅延ロードのルート + ナビリンク（rout
 rv add page blog/detail   # ネストしたルートパスも可
 rv add component user-card
 rv add store cart         # zustand ストア（zustand 必須）
+rv add hook toggle        # src/hooks/useToggle
+rv add layout admin       # Outlet レイアウト（router 必須）
 ```
 
 各ジェネレーターは `package.json` から TypeScript と Tailwind を検出し、
@@ -115,6 +118,11 @@ rv add store cart         # zustand ストア（zustand 必須）
 - **`rv add component <name>`** —— `src/components/UserCard.tsx` を生成。
 - **`rv add store <name>`** —— 型付き zustand ストアの雛形
   `src/store/useCart.ts` を生成。Zustand 機能が必要です。
+- **`rv add hook <name>`** —— `src/hooks/useToggle.ts`（または `.js`）を
+  生成。`use` で始まる小さな React フックの雛形です。
+- **`rv add layout <name>`** —— `<Outlet />` を持つ
+  `src/layouts/AdminLayout.tsx` を生成し、その下にルートをネストする方法を
+  表示します。React Router 機能が必要です。
 
 ルートとナビの自動登録は、生成プロジェクトに含まれる `// rv:route` 形式の
 アンカーコメントに依存します。これらのファイルを再構成した場合（または
@@ -147,8 +155,9 @@ rv update --dry-run  # update の変更内容をプレビュー
 
 1. **プロジェクトディレクトリ**（`create`）または**パッケージ名**（`init`）
 2. **オプション機能** —— チェックボックス：TypeScript、Tailwind CSS、React
-   Router、ESLint + Prettier、Zustand。全 32 通りの組み合わせがサポート・
-   テストされています。
+   Router、ESLint + Prettier、Zustand、shadcn/ui。すべての組み合わせが
+   サポート・テストされています（shadcn/ui を選ぶと TypeScript と Tailwind
+   が自動的に有効になります）。
 3. **依存関係のインストール** —— `PATH` 上で見つかったパッケージマネージャー
    から選択（npm / pnpm / yarn、lockfile に一致するものを優先表示）、または
    スキップ。
@@ -165,7 +174,7 @@ rv init --name my-app --features router,zustand --install pnpm --conflicts keep
 
 | オプション               | コマンド                       | 値                                                                                  |
 | ------------------------ | ------------------------------ | ----------------------------------------------------------------------------------- |
-| `-f, --features <list>`  | `create` `init`                | カンマ区切り：`typescript`、`tailwind`、`router`、`eslint`、`zustand`、または `all` / `none` |
+| `-f, --features <list>`  | `create` `init`                | カンマ区切り：`typescript`、`tailwind`、`router`、`eslint`、`zustand`、`shadcn`、または `all` / `none` |
 | `--install <manager>`    | `create` `init`                | `npm`、`pnpm`、`yarn`、または `none`（インストールをスキップ）                      |
 | `--name <package-name>`  | `init`                         | パッケージ名（既存の `package.json` かディレクトリ名がデフォルト）                  |
 | `--conflicts <strategy>` | `init`                         | `overwrite`、`keep`、または `cancel`                                                |
@@ -173,7 +182,7 @@ rv init --name my-app --features router,zustand --install pnpm --conflicts keep
 | `--dry-run`              | `create` `init` `add` `update` | 何も書き込まずに変更をプレビュー                                                    |
 
 機能名のエイリアスも使えます：`ts`、`tailwindcss`、`react-router`、
-`react-router-dom`、`lint`、`prettier`、`store`。
+`react-router-dom`、`lint`、`prettier`、`store`、`shadcn-ui`、`ui`。
 
 ## 各機能が追加するもの
 
@@ -184,9 +193,13 @@ rv init --name my-app --features router,zustand --install pnpm --conflicts keep
 | **React Router**（v7） | `src/router`、ナビ付きレイアウト、`Home` / `About` ページ。非インデックスルートは route-level `lazy` でコード分割                  |
 | **ESLint + Prettier**  | `eslint.config.js`（フラット設定、TS 選択時は TS 対応）、`.prettierrc.json`、`lint` / `lint:fix` / `format` / `format:check`      |
 | **Zustand**            | `src/store/useCounter` とホームページで動作するカウンターコンポーネント                                                            |
+| **shadcn/ui**          | `components.json`、`src/lib/utils` の `cn()`、Tailwind v4 テーマ（ライト/ダークの CSS 変数）、`@/` インポートエイリアス（Vite + tsconfig）、`src/components/ui` のサンプル `Button`。TypeScript + Tailwind を自動で有効化 |
 
 機能は自由に組み合わせられます —— たとえば TS + Tailwind + Router + Zustand
 なら、型付きルーターと Tailwind スタイルのカウンターが最初から動きます。
+shadcn/ui を追加すれば `npx shadcn@latest add <component>` がすぐに使えます
+—— `src/components/ui` はベンダーコードとして扱われます（lint/format の
+対象外）。
 
 ## 生成後
 
@@ -217,6 +230,7 @@ npm run dev
 - React Router 7（Router 選択時）
 - Zustand 5（Zustand 選択時）
 - ESLint 10 フラット設定 · `typescript-eslint` 8 · Prettier 3（ESLint 選択時）
+- shadcn/ui の依存関係：`class-variance-authority`、`clsx`、`tailwind-merge`、`@radix-ui/react-slot`、`tw-animate-css`（shadcn/ui 選択時）
 
 すべてのリリースはスモークテストで検証されます：4 種類のプロジェクト構成
 （最小/フル × JS/TS）を実際に生成・インストール・ビルド・型チェック・lint

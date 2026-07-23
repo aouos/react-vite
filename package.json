@@ -1,6 +1,6 @@
 {
   "name": "react-vite",
-  "version": "0.0.7",
+  "version": "0.1.0",
   "description": "Interactive React + Vite project scaffolding with optional TypeScript, Tailwind CSS, React Router, ESLint + Prettier, and Zustand.",
   "type": "module",
   "bin": {
@@ -15,9 +15,10 @@
   ],
   "scripts": {
     "test": "node --test",
+    "typecheck": "tsc",
     "smoke": "node ./scripts/smoke.mjs",
     "pack:check": "npm pack --dry-run",
-    "verify:release": "npm test && npm run smoke && npm run pack:check",
+    "verify:release": "npm run typecheck && npm test && npm run smoke && npm run pack:check",
     "prepublishOnly": "npm test"
   },
   "repository": {
@@ -50,5 +51,9 @@
     "@inquirer/prompts": "8.5.2",
     "commander": "14.0.3",
     "picocolors": "1.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.2",
+    "typescript": "6.0.3"
   }
 }

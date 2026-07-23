@@ -17,7 +17,7 @@ import {
 } from './common.js';
 
 // Prefers a valid name from an existing package.json, else derives one from the directory.
-async function inferPackageName(targetDir) {
+async function inferPackageName(/** @type {string} */ targetDir) {
   try {
     const raw = await readFile(path.join(targetDir, 'package.json'), 'utf8');
     const existing = JSON.parse(raw.replace(/^\uFEFF/u, ''));
@@ -32,8 +32,8 @@ async function inferPackageName(targetDir) {
 /**
  * Implements "rv init": scaffolds into the current directory, merging any existing
  * package.json and resolving file conflicts via --conflicts or an interactive prompt.
- * @param {object} options - { name?: string, features?: string, install?: string,
- *   conflicts?: string, dryRun?: boolean }.
+ * @param {{ name?: string, features?: string, install?: string, conflicts?: string,
+ *   dryRun?: boolean }} options - Parsed command options.
  * @returns {Promise<void>}
  * @throws {Error} When --name is invalid after sanitization.
  */

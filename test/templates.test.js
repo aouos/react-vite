@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FEATURE_KEYS } from '../src/features.js';
+import { FEATURE_KEYS, featuresFromKeys, normalizeFeatures } from '../src/features.js';
 import { buildGeneratedPackageJson } from '../src/package-json.js';
 import { getTemplateFiles } from '../src/templates.js';
 
@@ -16,7 +16,7 @@ function filesAsMap(features, projectName = 'matrix-app') {
   );
 }
 
-test('all 32 feature combinations produce a coherent file set', () => {
+test('every feature combination produces a coherent file set', () => {
   for (let mask = 0; mask < 2 ** FEATURE_KEYS.length; mask += 1) {
     const features = featuresForMask(mask);
     const files = filesAsMap(features);
@@ -60,6 +60,38 @@ test('all 32 feature combinations produce a coherent file set', () => {
 
     assert.equal(files.size, getTemplateFiles(features, 'matrix-app').length);
   }
+});
+
+test('shadcn feature emits ui scaffolding, aliases, and vendored-code ignores', () => {
+  // shadcn implies TypeScript + Tailwind; add ESLint so the vendored-code ignores appear too.
+  const features = normalizeFeatures(featuresFromKeys(['shadcn', 'eslint']));
+  const files = filesAsMap(features, 'shadcn-app');
+
+  assert.ok(files.has('components.json'));
+  assert.ok(files.has('src/lib/utils.ts'));
+  assert.ok(files.has('src/components/ui/button.tsx'));
+
+  // @/ alias wired into both Vite and TypeScript.
+  assert.match(files.get('vite.config.ts'), /fileURLToPath/);
+  assert.match(files.get('vite.config.ts'), /'@': fileURLToPath/);
+  assert.match(files.get('tsconfig.app.json'), /"@\/\*": \["\.\/src\/\*"\]/);
+
+  // shadcn theme replaces the plain Tailwind entry CSS.
+  assert.match(files.get('src/index.css'), /@theme inline/);
+  assert.match(files.get('src/index.css'), /tw-animate-css/);
+
+  // Vendored ui/ is excluded from the generated project's lint + format.
+  assert.match(files.get('eslint.config.js'), /'src\/components\/ui'/);
+  assert.match(files.get('.prettierignore'), /src\/components\/ui\//);
+
+  // cn() helper and pinned shadcn dependencies are present.
+  assert.match(files.get('src/lib/utils.ts'), /export function cn\(/);
+  const pkg = buildGeneratedPackageJson(features, 'shadcn-app');
+  assert.ok(pkg.dependencies['class-variance-authority']);
+  assert.ok(pkg.dependencies.clsx);
+  assert.ok(pkg.dependencies['tailwind-merge']);
+  assert.ok(pkg.dependencies['@radix-ui/react-slot']);
+  assert.ok(pkg.devDependencies['tw-animate-css']);
 });
 
 test('generated HTML escapes project names and points to the correct source extension', () => {

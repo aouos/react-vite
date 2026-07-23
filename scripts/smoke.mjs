@@ -103,12 +103,16 @@ try {
   assert.equal(completePackage.devDependencies.vite, '8.1.5');
   assert.equal(completePackage.dependencies['react-router-dom'], '7.18.1');
   assert.equal(completePackage.dependencies.zustand, '5.0.14');
+  assert.equal(completePackage.dependencies.clsx, '2.1.1');
+  assert.equal(completePackage.devDependencies['tw-animate-css'], '1.4.0');
 
   for (const profile of ['complete-js', 'complete-ts']) {
     const profileDir = path.join(root, profile);
     runCli(['add', 'page', 'blog-post'], profileDir);
     runCli(['add', 'component', 'user-card'], profileDir);
     runCli(['add', 'store', 'cart'], profileDir);
+    runCli(['add', 'hook', 'toggle'], profileDir);
+    runCli(['add', 'layout', 'admin'], profileDir);
     runCli(['doctor'], profileDir);
   }
 

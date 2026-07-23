@@ -8,16 +8,16 @@ export const logger = Object.freeze({
   info(message = '') {
     console.log(message);
   },
-  success(message) {
+  success(/** @type {string} */ message) {
     console.log(pc.green(message));
   },
-  warn(message) {
+  warn(/** @type {string} */ message) {
     console.warn(pc.yellow(message));
   },
-  error(message) {
+  error(/** @type {string} */ message) {
     console.error(pc.red(message));
   },
-  label(label, value) {
+  label(/** @type {string} */ label, /** @type {string} */ value) {
     console.log(`${pc.dim(`${label}:`)} ${value}`);
   },
 });

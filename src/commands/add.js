@@ -2,6 +2,7 @@ import { lstat, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import pc from 'picocolors';
 import {
+  layoutComponentName,
   pageComponentName,
   pageRoutePath,
   storeHookName,
@@ -9,14 +10,16 @@ import {
 } from '../names.js';
 import {
   addedComponentSource,
+  addedHookSource,
+  addedLayoutSource,
   addedPageSource,
   addedStoreSource,
 } from '../templates.js';
 import { logger } from '../utils/logger.js';
 
-const ADD_TYPES = Object.freeze(['page', 'component', 'store']);
+const ADD_TYPES = Object.freeze(['page', 'component', 'store', 'hook', 'layout']);
 
-async function fileExists(filePath) {
+async function fileExists(/** @type {string} */ filePath) {
   try {
     return (await lstat(filePath)).isFile();
   } catch (error) {
@@ -25,7 +28,11 @@ async function fileExists(filePath) {
   }
 }
 
-// Infers enabled features from package.json dependencies (BOM-stripped before parsing).
+/**
+ * Infers enabled features from package.json dependencies (BOM-stripped before parsing).
+ * @param {string} targetDir - Project directory containing package.json.
+ * @returns {Promise<Features>} The detected feature map.
+ */
 async function detectProject(targetDir) {
   const packagePath = path.join(targetDir, 'package.json');
   if (!(await fileExists(packagePath))) {
@@ -50,10 +57,11 @@ async function detectProject(targetDir) {
     router: Boolean(dependencies['react-router-dom']),
     zustand: Boolean(dependencies.zustand),
     eslint: Boolean(dependencies.eslint),
+    shadcn: Boolean(dependencies['class-variance-authority']),
   };
 }
 
-async function findSourceFile(targetDir, candidates) {
+async function findSourceFile(/** @type {string} */ targetDir, /** @type {string[]} */ candidates) {
   for (const candidate of candidates) {
     if (await fileExists(path.join(targetDir, candidate))) return candidate;
   }
@@ -65,7 +73,12 @@ async function findSourceFile(targetDir, candidates) {
 // line itself so future insertions still work, and re-indenting every inserted line to
 // match the anchor's leading whitespace. Returns false when the anchor is missing so
 // callers can fall back to printing manual instructions.
-async function insertAtAnchor(targetDir, relativePath, anchor, line) {
+async function insertAtAnchor(
+  /** @type {string} */ targetDir,
+  /** @type {string} */ relativePath,
+  /** @type {string} */ anchor,
+  /** @type {string} */ line,
+) {
   const filePath = path.join(targetDir, relativePath);
   const contents = await readFile(filePath, 'utf8');
   const pattern = new RegExp(
@@ -88,7 +101,7 @@ async function insertAtAnchor(targetDir, relativePath, anchor, line) {
   return true;
 }
 
-async function addPage(name, targetDir, dryRun) {
+async function addPage(/** @type {string} */ name, /** @type {string} */ targetDir, /** @type {boolean} */ dryRun) {
   const segments = String(name ?? '').split('/').filter(Boolean);
   if (segments.length === 0) throw new Error('Page name is required.');
   if (segments.length > 3) {
@@ -176,7 +189,11 @@ async function addPage(name, targetDir, dryRun) {
   logger.info(`\nOpen ${pc.cyan(`/${routePath}`)} in the dev server to see the page.`);
 }
 
-async function writeGeneratedFile(targetDir, relativePath, contents) {
+async function writeGeneratedFile(
+  /** @type {string} */ targetDir,
+  /** @type {string} */ relativePath,
+  /** @type {string} */ contents,
+) {
   if (await fileExists(path.join(targetDir, relativePath))) {
     throw new Error(`${relativePath} already exists.`);
   }
@@ -185,7 +202,7 @@ async function writeGeneratedFile(targetDir, relativePath, contents) {
   logger.success(`Created ${relativePath}`);
 }
 
-async function addComponent(name, targetDir, dryRun) {
+async function addComponent(/** @type {string} */ name, /** @type {string} */ targetDir, /** @type {boolean} */ dryRun) {
   const validation = validatePageName(name);
   if (validation !== true) throw new Error(validation);
 
@@ -208,7 +225,7 @@ async function addComponent(name, targetDir, dryRun) {
   logger.info(`\nImport it with ${pc.cyan(`import ${componentName} from './components/${componentName}';`)}`);
 }
 
-async function addStore(name, targetDir, dryRun) {
+async function addStore(/** @type {string} */ name, /** @type {string} */ targetDir, /** @type {boolean} */ dryRun) {
   const validation = validatePageName(name);
   if (validation !== true) throw new Error(validation);
   if (name.length > 24) {
@@ -242,12 +259,59 @@ async function addStore(name, targetDir, dryRun) {
   logger.info(`\nUse it with ${pc.cyan(`import { ${hookName} } from './store/${hookName}';`)}`);
 }
 
+async function addHook(/** @type {string} */ name, /** @type {string} */ targetDir, /** @type {boolean} */ dryRun) {
+  const validation = validatePageName(name);
+  if (validation !== true) throw new Error(validation);
+
+  const features = await detectProject(targetDir);
+  const hookName = storeHookName(name);
+  const extension = features.typescript ? 'ts' : 'js';
+  const hookFile = `src/hooks/${hookName}.${extension}`;
+
+  if (dryRun) {
+    logger.warn('Dry run — nothing was written.');
+    logger.info(`  Would create ${hookFile}`);
+    return;
+  }
+
+  await writeGeneratedFile(targetDir, hookFile, addedHookSource(features, hookName));
+  logger.info(`\nUse it with ${pc.cyan(`import { ${hookName} } from './hooks/${hookName}';`)}`);
+}
+
+async function addLayout(/** @type {string} */ name, /** @type {string} */ targetDir, /** @type {boolean} */ dryRun) {
+  const validation = validatePageName(name);
+  if (validation !== true) throw new Error(validation);
+
+  const features = await detectProject(targetDir);
+  if (!features.router) {
+    throw new Error(
+      'rv add layout requires React Router (react-router-dom was not found in package.json). ' +
+        'Scaffold with the router feature enabled, or wire the layout up manually.',
+    );
+  }
+
+  const componentName = layoutComponentName(name);
+  const extension = features.typescript ? 'tsx' : 'jsx';
+  const layoutFile = `src/layouts/${componentName}.${extension}`;
+
+  if (dryRun) {
+    logger.warn('Dry run — nothing was written.');
+    logger.info(`  Would create ${layoutFile}`);
+    return;
+  }
+
+  await writeGeneratedFile(targetDir, layoutFile, addedLayoutSource(features, componentName));
+  logger.info(`\nUse ${componentName} as a layout route in your router file:`);
+  logger.info(pc.cyan(`  import ${componentName} from './layouts/${componentName}';`));
+  logger.info(pc.cyan(`  { element: <${componentName} />, children: [ /* nested routes */ ] }`));
+}
+
 /**
- * Implements "rv add": generates a page, component, or store in an existing project.
- * Pages are also wired into the router/layout via the rv:route and rv:nav anchors.
- * @param {string} type - "page", "component", or "store".
+ * Implements "rv add": generates a page, component, store, hook, or layout in an existing
+ * project. Pages are also wired into the router/layout via the rv:route and rv:nav anchors.
+ * @param {string} type - "page", "component", "store", "hook", or "layout".
  * @param {string} name - Name of the new piece (pages may use up to three "/" segments).
- * @param {object} options - { cwd?: string, dryRun?: boolean }.
+ * @param {{ cwd?: string, dryRun?: boolean }} [options] - Working directory and dry-run flag.
  * @returns {Promise<void>}
  * @throws {Error} On unknown type, invalid names, missing prerequisites, or existing files.
  */
@@ -261,6 +325,14 @@ export async function addCommand(type, name, { cwd = process.cwd(), dryRun = fal
   }
   if (type === 'store') {
     await addStore(name, cwd, dryRun);
+    return;
+  }
+  if (type === 'hook') {
+    await addHook(name, cwd, dryRun);
+    return;
+  }
+  if (type === 'layout') {
+    await addLayout(name, cwd, dryRun);
     return;
   }
   await addPage(name, cwd, dryRun);

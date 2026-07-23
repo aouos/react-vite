@@ -7,8 +7,8 @@ import { collectDiagnostics } from './doctor.js';
 /**
  * Implements "rv update": rewrites drifted template-managed dependency versions in
  * package.json back to the exact versions rv pins.
- * @param {object} options - { cwd?: string, dryRun?: boolean }.
- * @returns {Promise<object>} The diagnostics report used to compute the drift.
+ * @param {{ cwd?: string, dryRun?: boolean }} options - Working directory and dry-run flag.
+ * @returns {Promise<Diagnostics>} The diagnostics report used to compute the drift.
  */
 export async function updateCommand({ cwd = process.cwd(), dryRun = false } = {}) {
   const report = await collectDiagnostics(cwd);

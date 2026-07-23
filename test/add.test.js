@@ -109,6 +109,49 @@ test('add store generates a zustand store and requires the dependency', async ()
   );
 });
 
+test('add hook generates a use-prefixed hook in any project', async () => {
+  const tsDir = await scaffoldTestProject(['typescript']);
+  await addCommand('hook', 'cart', { cwd: tsDir });
+  const hook = await readFile(path.join(tsDir, 'src/hooks/useCart.ts'), 'utf8');
+  assert.match(hook, /export function useCart<T>\(initialValue: T\)/);
+  assert.match(hook, /useState\(initialValue\)/);
+
+  await addCommand('hook', 'use-session', { cwd: tsDir });
+  const session = await readFile(path.join(tsDir, 'src/hooks/useSession.ts'), 'utf8');
+  assert.match(session, /export function useSession/);
+
+  const jsDir = await scaffoldTestProject([]);
+  await addCommand('hook', 'cart', { cwd: jsDir });
+  const jsHook = await readFile(path.join(jsDir, 'src/hooks/useCart.js'), 'utf8');
+  assert.match(jsHook, /export function useCart\(initialValue\)/);
+  assert.doesNotMatch(jsHook, /<T>/);
+
+  await assert.rejects(addCommand('hook', 'cart', { cwd: jsDir }), /already exists/);
+});
+
+test('add layout generates an Outlet layout and requires router', async () => {
+  const targetDir = await scaffoldTestProject(['typescript', 'tailwind', 'router']);
+  await addCommand('layout', 'admin', { cwd: targetDir });
+  const layout = await readFile(path.join(targetDir, 'src/layouts/AdminLayout.tsx'), 'utf8');
+  assert.match(layout, /export default function AdminLayout\(\)/);
+  assert.match(layout, /import \{ Outlet \} from 'react-router-dom';/);
+  assert.match(layout, /const title = 'Admin Layout';/);
+  assert.match(layout, /<Outlet \/>/);
+
+  await addCommand('layout', 'dashboard-layout', { cwd: targetDir });
+  const deduped = await readFile(
+    path.join(targetDir, 'src/layouts/DashboardLayout.tsx'),
+    'utf8',
+  );
+  assert.match(deduped, /export default function DashboardLayout\(\)/);
+
+  const withoutRouter = await scaffoldTestProject(['typescript']);
+  await assert.rejects(
+    addCommand('layout', 'admin', { cwd: withoutRouter }),
+    /requires React Router/,
+  );
+});
+
 test('add page supports nested paths', async () => {
   const targetDir = await scaffoldTestProject(['router']);
   await addCommand('page', 'blog/detail', { cwd: targetDir });
@@ -133,10 +176,14 @@ test('add --dry-run previews without writing', async () => {
   await addCommand('page', 'blog', { cwd: targetDir, dryRun: true });
   await addCommand('component', 'user-card', { cwd: targetDir, dryRun: true });
   await addCommand('store', 'cart', { cwd: targetDir, dryRun: true });
+  await addCommand('hook', 'toggle', { cwd: targetDir, dryRun: true });
+  await addCommand('layout', 'admin', { cwd: targetDir, dryRun: true });
 
   await assert.rejects(readFile(path.join(targetDir, 'src/pages/Blog.jsx'), 'utf8'));
   await assert.rejects(readFile(path.join(targetDir, 'src/components/UserCard.jsx'), 'utf8'));
   await assert.rejects(readFile(path.join(targetDir, 'src/store/useCart.js'), 'utf8'));
+  await assert.rejects(readFile(path.join(targetDir, 'src/hooks/useToggle.js'), 'utf8'));
+  await assert.rejects(readFile(path.join(targetDir, 'src/layouts/AdminLayout.jsx'), 'utf8'));
   const routerAfter = await readFile(path.join(targetDir, 'src/router.jsx'), 'utf8');
   assert.equal(routerAfter, routerBefore);
 });

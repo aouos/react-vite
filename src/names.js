@@ -28,7 +28,7 @@ const WINDOWS_RESERVED_NAMES = new Set([
 const PACKAGE_SEGMENT_PATTERN = /^[a-z0-9][a-z0-9._-]*$/u;
 
 // Lowercases and collapses invalid characters into hyphens to form a valid name segment.
-function sanitizePackageSegment(value) {
+function sanitizePackageSegment(/** @type {string} */ value) {
   return String(value ?? '')
     .trim()
     .toLowerCase()
@@ -167,11 +167,22 @@ export function pageRoutePath(value) {
 }
 
 /**
- * Builds a Zustand hook name from a store name, avoiding a doubled "use" prefix.
- * @param {string} value - Store name (e.g. cart or use-cart).
+ * Builds a Zustand/React hook name from a name, avoiding a doubled "use" prefix.
+ * @param {string} value - Store or hook name (e.g. cart or use-cart).
  * @returns {string} Hook name such as useCart.
  */
 export function storeHookName(value) {
   const base = String(value).replace(/^use-?/iu, '');
   return `use${pageComponentName(base)}`;
+}
+
+/**
+ * Builds a layout component name, ensuring a single "Layout" suffix
+ * (admin -> AdminLayout, admin-layout -> AdminLayout).
+ * @param {string} value - Layout name.
+ * @returns {string} PascalCase component name ending in "Layout".
+ */
+export function layoutComponentName(value) {
+  const base = pageComponentName(String(value).replace(/-?layout$/iu, ''));
+  return `${base}Layout`;
 }

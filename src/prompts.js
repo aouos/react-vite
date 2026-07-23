@@ -50,7 +50,7 @@ export async function promptPackageName(defaultValue = 'my-app') {
 /**
  * Prompts with a checkbox list of optional features.
  * @param {string[]} preselected - Feature keys to check by default.
- * @returns {Promise<object>} Map of feature key to boolean.
+ * @returns {Promise<Features>} Map of feature key to boolean.
  */
 export async function promptFeatures(preselected = []) {
   assertInteractive();
@@ -137,7 +137,7 @@ export async function promptPackageManager(available, preferred) {
 
 /**
  * Detects whether an error came from the user canceling an inquirer prompt.
- * @param {object} error - Error to inspect.
+ * @param {{ name?: string, message?: string }} error - Error to inspect.
  * @returns {boolean} true when the error represents a prompt cancellation.
  */
 export function isPromptCancellation(error) {

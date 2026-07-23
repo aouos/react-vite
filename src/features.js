@@ -1,6 +1,7 @@
 /**
  * Metadata for every optional feature rv can scaffold, in prompt display order.
  * Each entry has key, name, description, and aliases accepted by --features.
+ * @type {readonly FeatureDefinition[]}
  */
 export const FEATURE_DEFINITIONS = Object.freeze([
   {
@@ -33,13 +34,23 @@ export const FEATURE_DEFINITIONS = Object.freeze([
     description: 'A small typed counter store and example component',
     aliases: ['store'],
   },
+  {
+    key: 'shadcn',
+    name: 'shadcn/ui',
+    description: 'shadcn/ui setup with an example Button (implies TypeScript + Tailwind)',
+    aliases: ['shadcn-ui', 'shadcnui', 'ui'],
+  },
 ]);
 
-/** Canonical feature keys in definition order. */
+/**
+ * Canonical feature keys in definition order.
+ * @type {readonly FeatureKey[]}
+ */
 export const FEATURE_KEYS = Object.freeze(
   FEATURE_DEFINITIONS.map((feature) => feature.key),
 );
 
+/** @type {Map<string, FeatureKey>} */
 const FEATURE_LOOKUP = new Map();
 for (const feature of FEATURE_DEFINITIONS) {
   FEATURE_LOOKUP.set(feature.key, feature.key);
@@ -50,41 +61,71 @@ for (const feature of FEATURE_DEFINITIONS) {
 
 /**
  * Builds a feature map with every feature disabled.
- * @returns {object} Map of feature key to false.
+ * @returns {Features} Map of feature key to false.
  */
 export function emptyFeatures() {
-  return Object.fromEntries(FEATURE_KEYS.map((key) => [key, false]));
+  return /** @type {Features} */ (
+    Object.fromEntries(FEATURE_KEYS.map((key) => [key, false]))
+  );
 }
 
 /**
  * Builds a feature map with every feature enabled.
- * @returns {object} Map of feature key to true.
+ * @returns {Features} Map of feature key to true.
  */
 export function allFeatures() {
-  return Object.fromEntries(FEATURE_KEYS.map((key) => [key, true]));
+  return /** @type {Features} */ (
+    Object.fromEntries(FEATURE_KEYS.map((key) => [key, true]))
+  );
+}
+
+/**
+ * Applies feature implications: shadcn/ui requires TypeScript and Tailwind, so selecting it
+ * turns both on. Returns a new map; the input is not mutated.
+ * @param {Features} features - Map of feature key to boolean.
+ * @returns {Features} Normalized feature map with every canonical key present.
+ */
+export function normalizeFeatures(features) {
+  const result = { ...emptyFeatures(), ...features };
+  if (result.shadcn) {
+    result.typescript = true;
+    result.tailwind = true;
+  }
+  return result;
+}
+
+/**
+ * Reports whether shadcn/ui scaffolding should be emitted. shadcn requires both Tailwind
+ * and TypeScript, so its files only activate when all three flags are present — this keeps
+ * template and package output coherent even for unnormalized feature maps.
+ * @param {Features} features - Map of feature key to boolean.
+ * @returns {boolean} true when shadcn output is coherent and enabled.
+ */
+export function shadcnEnabled(features) {
+  return Boolean(features?.shadcn && features?.tailwind && features?.typescript);
 }
 
 /**
  * Builds a feature map with only the given canonical keys enabled.
  * @param {string[]} keys - Canonical feature keys to enable.
- * @returns {object} Map of feature key to boolean.
+ * @returns {Features} Map of feature key to boolean.
  * @throws {Error} When a key is not a known feature.
  */
 export function featuresFromKeys(keys = []) {
   const result = emptyFeatures();
   for (const key of keys) {
-    if (!FEATURE_KEYS.includes(key)) {
+    if (!FEATURE_KEYS.includes(/** @type {FeatureKey} */ (key))) {
       throw new Error(`Unknown feature: ${key}`);
     }
-    result[key] = true;
+    result[/** @type {FeatureKey} */ (key)] = true;
   }
   return result;
 }
 
 /**
  * Lists the enabled feature keys from a feature map, in definition order.
- * @param {object} features - Map of feature key to boolean.
- * @returns {string[]} Enabled feature keys.
+ * @param {Features} features - Map of feature key to boolean.
+ * @returns {FeatureKey[]} Enabled feature keys.
  */
 export function selectedFeatureKeys(features) {
   return FEATURE_KEYS.filter((key) => Boolean(features?.[key]));
@@ -92,7 +133,7 @@ export function selectedFeatureKeys(features) {
 
 /**
  * Lists the human-readable names of the enabled features, in definition order.
- * @param {object} features - Map of feature key to boolean.
+ * @param {Features} features - Map of feature key to boolean.
  * @returns {string[]} Display names of enabled features.
  */
 export function selectedFeatureNames(features) {
@@ -105,7 +146,7 @@ export function selectedFeatureNames(features) {
 /**
  * Parses a --features value (comma-separated keys/aliases, "all", "none", or "minimal").
  * @param {string} value - Raw option value from the command line.
- * @returns {object} Map of feature key to boolean.
+ * @returns {Features} Map of feature key to boolean.
  * @throws {Error} When the list contains unknown feature names.
  */
 export function parseFeatureList(value) {
@@ -120,7 +161,9 @@ export function parseFeatureList(value) {
     .map((key) => key.trim())
     .filter(Boolean);
 
+  /** @type {FeatureKey[]} */
   const keys = [];
+  /** @type {string[]} */
   const unknown = [];
   for (const rawKey of rawKeys) {
     const key = FEATURE_LOOKUP.get(rawKey);

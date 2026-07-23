@@ -19,8 +19,8 @@ React Vite
 <p align="center">English | <a href="README.zh-CN.md">简体中文</a> | <a href="README.ja.md">日本語</a></p>
 
 > Scaffold a minimal React + Vite project with optional TypeScript, Tailwind
-> CSS, React Router, ESLint + Prettier, and Zustand — pick only what you
-> need, get a project that boots immediately.
+> CSS, React Router, ESLint + Prettier, Zustand, and shadcn/ui — pick only
+> what you need, get a project that boots immediately.
 
 ## Why `rv` instead of `npm create vite@latest`?
 
@@ -37,10 +37,11 @@ linting — after generating, you still have to wire those up by hand.
 | **Tailwind v4 (fully wired)**            | No — manual setup              | Yes — plugin + `@import` in CSS |
 | **React Router with a working demo**     | No                             | Yes — 2 routes (`/`, `/about`)  |
 | **Zustand store + counter demo**         | No                             | Yes                             |
+| **shadcn/ui (Tailwind v4) ready**        | No                             | Yes — theme, `cn()`, example `Button` |
 | **ESLint flat config + Prettier**        | ESLint only, no Prettier       | Both, TS-aware when TS is on    |
 | **`git init` + editor recommendations**  | No                             | Yes — plus `.vscode/extensions.json` |
 | **Init into an existing directory**      | No (`create-*` makes new dirs) | Yes — `rv init` with safe merge |
-| **Generators after scaffolding**         | No                             | Yes — `rv add page/component/store` |
+| **Generators after scaffolding**         | No                             | Yes — `rv add page/component/store/hook/layout` |
 | **Project health check**                 | No                             | Yes — `rv doctor`               |
 | **Runs install for you (npm/pnpm/yarn)** | No                             | Yes — prompts for PM on PATH    |
 
@@ -108,6 +109,8 @@ rv add page blog-post     # lazy-loaded route + nav link (router projects)
 rv add page blog/detail   # nested route paths work too
 rv add component user-card
 rv add store cart         # zustand store (zustand projects)
+rv add hook toggle        # src/hooks/useToggle
+rv add layout admin       # Outlet layout (router projects)
 ```
 
 Each generator detects TypeScript and Tailwind from your `package.json` and
@@ -120,6 +123,11 @@ writes files in the same style as the rest of the project:
 - **`rv add component <name>`** — generates `src/components/UserCard.tsx`.
 - **`rv add store <name>`** — generates `src/store/useCart.ts` with a typed
   zustand store skeleton. Requires the Zustand feature.
+- **`rv add hook <name>`** — generates `src/hooks/useToggle.ts` (or `.js`), a
+  small `use`-prefixed React hook to build on.
+- **`rv add layout <name>`** — generates `src/layouts/AdminLayout.tsx` with an
+  `<Outlet />`, then prints how to nest routes under it. Requires the React
+  Router feature.
 
 Route and nav registration rely on the small `// rv:route`-style anchor
 comments that scaffolded projects contain. If you have restructured those
@@ -153,8 +161,9 @@ flag):
 
 1. **Project directory** (`create`) or **package name** (`init`)
 2. **Optional features** — a checkbox list: TypeScript, Tailwind CSS, React
-   Router, ESLint + Prettier, Zustand. Toggle each on or off; all 32
-   combinations are supported and tested.
+   Router, ESLint + Prettier, Zustand, shadcn/ui. Toggle each on or off; every
+   combination is supported and tested (selecting shadcn/ui turns on TypeScript
+   and Tailwind automatically).
 3. **Dependency installation** — pick any package manager found on your
    `PATH` (npm / pnpm / yarn, with the one matching an existing lockfile
    preselected), or skip installation.
@@ -171,7 +180,7 @@ rv init --name my-app --features router,zustand --install pnpm --conflicts keep
 
 | Option                   | Commands        | Values                                                                                       |
 | ------------------------ | --------------- | -------------------------------------------------------------------------------------------- |
-| `-f, --features <list>`  | `create` `init` | Comma-separated: `typescript`, `tailwind`, `router`, `eslint`, `zustand` — or `all` / `none` |
+| `-f, --features <list>`  | `create` `init` | Comma-separated: `typescript`, `tailwind`, `router`, `eslint`, `zustand`, `shadcn` — or `all` / `none` |
 | `--install <manager>`    | `create` `init` | `npm`, `pnpm`, `yarn`, or `none` to skip installation                                        |
 | `--name <package-name>`  | `init`          | Package name (defaults to existing `package.json` or the directory name)                     |
 | `--conflicts <strategy>` | `init`          | `overwrite`, `keep`, or `cancel`                                                             |
@@ -179,7 +188,7 @@ rv init --name my-app --features router,zustand --install pnpm --conflicts keep
 | `--dry-run`              | `create` `init` `add` `update` | Preview the changes without writing anything                                  |
 
 Feature aliases are accepted: `ts`, `tailwindcss`, `react-router`,
-`react-router-dom`, `lint`, `prettier`, `store`.
+`react-router-dom`, `lint`, `prettier`, `store`, `shadcn-ui`, `ui`.
 
 ## What each feature adds
 
@@ -190,9 +199,12 @@ Feature aliases are accepted: `ts`, `tailwindcss`, `react-router`,
 | **React Router** (v7) | `src/router`, a layout with navigation, `Home` and `About` pages; non-index routes are code-split via route-level `lazy`                             |
 | **ESLint + Prettier** | `eslint.config.js` (flat config, TS-aware when TypeScript is selected), `.prettierrc.json`, and `lint`, `lint:fix`, `format`, `format:check` scripts |
 | **Zustand**           | `src/store/useCounter` plus a working counter component on the start page                                                                            |
+| **shadcn/ui**         | `components.json`, `cn()` in `src/lib/utils`, the Tailwind v4 theme (light/dark CSS variables), the `@/` import alias (Vite + tsconfig), and an example `Button` in `src/components/ui`. Implies TypeScript + Tailwind |
 
 Features compose — for example TS + Tailwind + Router + Zustand gives you a
 typed router with a Tailwind-styled counter on the home page out of the box.
+Add shadcn/ui and `npx shadcn@latest add <component>` works immediately —
+`src/components/ui` is treated as vendored code (excluded from lint/format).
 
 ## After scaffolding
 
@@ -223,6 +235,7 @@ Current defaults:
 - React Router 7 (when Router selected)
 - Zustand 5 (when Zustand selected)
 - ESLint 10 flat config · `typescript-eslint` 8 · Prettier 3 (when ESLint selected)
+- shadcn/ui deps: `class-variance-authority`, `clsx`, `tailwind-merge`, `@radix-ui/react-slot`, `tw-animate-css` (when shadcn/ui selected)
 
 Every release is verified by a smoke test that scaffolds, installs, builds,
 type-checks, and lints four project profiles (minimal/complete × JS/TS).

@@ -4,7 +4,7 @@ import pc from 'picocolors';
 import { GENERATED_NODE_ENGINES, TEMPLATE_VERSIONS } from '../package-json.js';
 import { logger } from '../utils/logger.js';
 
-async function fileExists(filePath) {
+async function fileExists(/** @type {string} */ filePath) {
   try {
     return (await lstat(filePath)).isFile();
   } catch (error) {
@@ -14,7 +14,7 @@ async function fileExists(filePath) {
 }
 
 // Mirrors GENERATED_NODE_ENGINES: Node ^20.19, ^22.13, or >=24.
-function nodeSupported(version) {
+function nodeSupported(/** @type {string} */ version) {
   const [major, minor] = version.split('.').map(Number);
   if (major >= 24) return true;
   if (major === 22 && minor >= 13) return true;
@@ -23,12 +23,16 @@ function nodeSupported(version) {
 }
 
 // Strips range operators (^, ~, >=, ...) so declared versions compare against exact pins.
-function normalizeVersion(range) {
+function normalizeVersion(/** @type {string} */ range) {
   return String(range).trim().replace(/^[~^>=<\s]+/u, '');
 }
 
 // Finds the first existing candidate file and reports whether it still contains the rv anchor.
-async function findAnchorFile(targetDir, candidates, anchor) {
+async function findAnchorFile(
+  /** @type {string} */ targetDir,
+  /** @type {string[]} */ candidates,
+  /** @type {string} */ anchor,
+) {
   for (const candidate of candidates) {
     const filePath = path.join(targetDir, candidate);
     if (!(await fileExists(filePath))) continue;
@@ -42,11 +46,10 @@ async function findAnchorFile(targetDir, candidates, anchor) {
  * Gathers project health data: Node support, dependency drift from the rv pins,
  * and whether the router/layout files still contain their rv anchors.
  * @param {string} targetDir - Project directory containing package.json.
- * @returns {Promise<object>} { isReactViteProject, nodeVersion, nodeSupported,
- *   drift: object[], router, layout }.
+ * @returns {Promise<Diagnostics>} The project health report.
  * @throws {Error} When package.json is missing or cannot be parsed.
  */
-export async function collectDiagnostics(targetDir) {
+export async function collectDiagnostics(/** @type {string} */ targetDir) {
   const packagePath = path.join(targetDir, 'package.json');
   if (!(await fileExists(packagePath))) {
     throw new Error('No package.json found. Run "rv doctor" inside a project directory.');
@@ -64,6 +67,7 @@ export async function collectDiagnostics(targetDir) {
     ...(packageJson.devDependencies ?? {}),
   };
 
+  /** @type {DependencyDrift[]} */
   const drift = [];
   for (const [packageName, pinned] of Object.entries(TEMPLATE_VERSIONS)) {
     const declared = dependencies[packageName];
@@ -96,8 +100,8 @@ export async function collectDiagnostics(targetDir) {
 
 /**
  * Implements "rv doctor": prints the diagnostics report with pass/warn markers.
- * @param {object} options - { cwd?: string }.
- * @returns {Promise<object>} The collectDiagnostics report.
+ * @param {{ cwd?: string }} [options] - Working directory (defaults to process.cwd()).
+ * @returns {Promise<Diagnostics>} The collectDiagnostics report.
  */
 export async function doctorCommand({ cwd = process.cwd() } = {}) {
   const report = await collectDiagnostics(cwd);
@@ -127,10 +131,10 @@ export async function doctorCommand({ cwd = process.cwd() } = {}) {
     logger.info(pc.dim('  Newer versions are not necessarily wrong — rv pins a verified set.'));
   }
 
-  for (const [entry, command] of [
+  for (const [entry, command] of /** @type {[AnchorFile | null, string][]} */ ([
     [report.router, 'rv add page'],
     [report.layout, 'rv add page'],
-  ]) {
+  ])) {
     if (!entry) continue;
     if (entry.hasAnchor) {
       logger.success(`✓ ${entry.file} still has its rv anchors (${command} will work)`);

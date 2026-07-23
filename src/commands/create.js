@@ -17,7 +17,7 @@ import {
 } from './common.js';
 
 // Reports whether the target exists and is empty; a lone .git entry still counts as empty.
-async function getTargetState(targetDir) {
+async function getTargetState(/** @type {string} */ targetDir) {
   try {
     const targetStat = await lstat(targetDir);
     if (!targetStat.isDirectory()) {
@@ -32,7 +32,7 @@ async function getTargetState(targetDir) {
 }
 
 // Runs git init unless git is missing or the directory is already inside a work tree.
-function initializeGitRepository(targetDir) {
+function initializeGitRepository(/** @type {string} */ targetDir) {
   if (!commandExists('git')) return false;
   if (tryCommand('git', ['rev-parse', '--is-inside-work-tree'], { cwd: targetDir })) {
     return false;
@@ -45,8 +45,8 @@ function initializeGitRepository(targetDir) {
  * optionally initializing git and installing dependencies; cleans up on failure
  * when the directory did not previously exist.
  * @param {string|undefined} projectDirectory - Target directory; prompts when omitted.
- * @param {object} options - { features?: string, install?: string, dryRun?: boolean,
- *   git?: boolean }.
+ * @param {{ features?: string, install?: string, dryRun?: boolean, git?: boolean }} options -
+ *   Parsed command options.
  * @returns {Promise<void>}
  * @throws {Error} When the name is invalid or the directory exists and is not empty.
  */

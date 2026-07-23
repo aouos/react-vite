@@ -12,7 +12,7 @@ const require = createRequire(import.meta.url);
 const packageJson = require('../package.json');
 
 // Attaches the --features/--install/--dry-run options shared by create and init.
-function addSharedOptions(command) {
+function addSharedOptions(/** @type {Command} */ command) {
   return command
     .option(
       '-f, --features <list>',
@@ -27,7 +27,7 @@ function addSharedOptions(command) {
 
 /**
  * Builds the fully configured commander program with all rv subcommands.
- * @returns {object} A commander Command instance ready to parse argv.
+ * @returns {Command} A commander Command instance ready to parse argv.
  */
 export function createProgram() {
   const program = new Command();
@@ -48,14 +48,15 @@ Examples:
   $ rv create my-app --features all --install npm
   $ rv init --features typescript,tailwind --install none
   $ rv add page blog
+  $ rv add hook toggle
 `,
     );
 
   program
     .command('add')
     .description('add pieces to an existing rv project')
-    .argument('<type>', 'what to add: page, component, or store')
-    .argument('<name>', 'name for the new piece, e.g. blog, blog/detail, or user-card')
+    .argument('<type>', 'what to add: page, component, store, hook, or layout')
+    .argument('<name>', 'name for the new piece, e.g. blog, blog/detail, user-card, or admin')
     .option('--dry-run', 'preview what would be created without writing')
     .action(async (type, name, options) => {
       await addCommand(type, name, { dryRun: options.dryRun });
